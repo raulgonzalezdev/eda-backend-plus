@@ -1,0 +1,43 @@
+asyncapi: '2.6.0'
+info:
+  title: EDA Streams
+  version: '0.1.0'
+defaultContentType: application/json
+servers:
+  local:
+    url: localhost:9094
+    protocol: kafka
+channels:
+  payments.events:
+    subscribe:
+      message:
+        $ref: '#/components/messages/Payment'
+  transfers.events:
+    subscribe:
+      message:
+        $ref: '#/components/messages/Transfer'
+  alerts.suspect:
+    publish:
+      message:
+        $ref: '#/components/messages/Alert'
+components:
+  messages:
+    Payment:
+      payload:
+        type: object
+        properties:
+          type: { type: string, enum: [payment] }
+          amount: { type: number }
+    Transfer:
+      payload:
+        type: object
+        properties:
+          type: { type: string, enum: [transfer] }
+          amount: { type: number }
+    Alert:
+      payload:
+        type: object
+        properties:
+          alert: { type: string }
+          type: { type: string }
+          amount: { type: number }

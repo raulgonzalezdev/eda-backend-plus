@@ -1,0 +1,21 @@
+replicaCount: 1
+
+image:
+  repository: rgq/eda-backend
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+env:
+  kafkaBootstrapServers: "kafka-bootstrap.kafka:9092"
+  jwtSecret: "dev-super-secret-change-me"
+  alertThreshold: 10000
+  kafkaStreamsAppId: "eda-alerts-app"
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

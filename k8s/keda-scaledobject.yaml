@@ -1,0 +1,20 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: eda-backend-kafka-lag
+  namespace: eda-demo
+spec:
+  scaleTargetRef:
+    name: eda-backend
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  cooldownPeriod: 60
+  pollingInterval: 15
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: "kafka-bootstrap.kafka:9092"
+        consumerGroup: "eda-alerts-app"
+        topic: "alerts.suspect"
+        lagThreshold: "100"
+        offsetResetPolicy: "latest"

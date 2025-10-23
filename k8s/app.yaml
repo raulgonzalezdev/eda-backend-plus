@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eda-demo
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jwt-secret
+  namespace: eda-demo
+type: Opaque
+stringData:
+  JWT_SECRET: dev-super-secret-change-me
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: eda-demo
+data:
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-bootstrap.kafka:9092"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eda-backend
+  namespace: eda-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: eda-backend }
+  template:
+    metadata:
+      labels: { app: eda-backend }
+    spec:
+      containers:
+        - name: app
+          image: rgq/eda-backend:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: JWT_SECRET
+            - name: ALERT_THRESHOLD
+              value: "10000"
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eda-backend
+  namespace: eda-demo
+spec:
+  selector: { app: eda-backend }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

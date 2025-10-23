@@ -1,0 +1,6 @@
+apiVersion: v2
+name: eda-backend
+description: EDA Backend (Kafka Streams + Spring Boot + JWT)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

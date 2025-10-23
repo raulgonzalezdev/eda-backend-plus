@@ -1,0 +1,25 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: eda-backend
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    streams:
+      application-id: ${KAFKA_STREAMS_APP_ID:eda-alerts-app}
+      replication-factor: 1
+      properties:
+        processing.guarantee: exactly_once_v2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-super-secret-change-me}
+  alerts:
+    threshold: ${ALERT_THRESHOLD:10000}
