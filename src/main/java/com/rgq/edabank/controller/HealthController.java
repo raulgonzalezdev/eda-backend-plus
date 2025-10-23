@@ -10,8 +10,8 @@ import java.util.Map;
 @RequestMapping("/api")
 public class HealthController {
 
-  @GetMapping("/hello")
+  @GetMapping("/health")
   public Map<String, Object> hello() {
-    return Map.of("ok", true, "service", "eda-backend");
+    return Map.of("status", "UP", "service", "eda-backend");
   }
 }

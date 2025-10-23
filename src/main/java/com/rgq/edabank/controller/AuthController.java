@@ -20,8 +20,8 @@ public class AuthController {
   private String jwtSecret;
 
   @GetMapping("/auth/token")
-  public ResponseEntity<?> token(@RequestParam(defaultValue = "demo-user") String sub,
-                                 @RequestParam(defaultValue = "alerts.read") String scope) throws Exception {
+  public ResponseEntity<?> token(@RequestParam(name = "sub", defaultValue = "demo-user") String sub,
+                                 @RequestParam(name = "scope", defaultValue = "alerts.read") String scope) throws Exception {
     JWSSigner signer = new MACSigner(jwtSecret.getBytes());
     Instant now = Instant.now();
     JWTClaimsSet claims = new JWTClaimsSet.Builder()

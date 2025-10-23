@@ -31,9 +31,11 @@ services:
     build: .
     depends_on:
       - kafka
+    env_file:
+      - .env
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - JWT_SECRET=dev-super-secret-change-me
+      - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
     ports:
       - "8080:8080"
