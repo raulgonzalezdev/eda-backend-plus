@@ -1,0 +1,9 @@
+[2025-10-24 11:43:55] --- INICIO DE LA PRUEBA DE ALERTAS ---
+[2025-10-24 11:43:55] Esperando 10 segundos a que la aplicación se inicie por completo...
+[2025-10-24 11:44:05] Paso 1: Obteniendo token JWT...
+[2025-10-24 11:44:06] Token JWT obtenido exitosamente.
+[2025-10-24 11:44:06] Token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJzY29wZSI6IlVTRVIiLCJpc3MiOiJkZW1vLWlzc3VlciIsImV4cCI6MTc2MTMyNDI0NywiaWF0IjoxNzYxMzIwNjQ3LCJqdGkiOiJkMDg0ZmUxNy1jZGZhLTQ1NjEtODE2ZC1hZGFlNjRlOTJhZjcifQ.Ra17VLsg13Ra5BOdTCIgGq71N4XA8Kh3sL1QFyknAko
+[2025-10-24 11:44:06] 
+Paso 2: Enviando transacción de pago sospechosa (monto: 15000)...
+[2025-10-24 11:44:06] ERROR: Falló el envío de la transacción.
+[2025-10-24 11:44:06] Error en el servidor remoto: (500) Error interno del servidor.

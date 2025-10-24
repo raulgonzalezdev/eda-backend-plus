@@ -6,6 +6,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 @Entity
 @Table(name = "payments", schema = "pos")
 public class Payment {
@@ -16,7 +19,7 @@ public class Payment {
     private String currency;
     @Column(name = "account_id")
     private String accountId;
-    @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
     @Column(name = "created_at")
     private OffsetDateTime createdAt;

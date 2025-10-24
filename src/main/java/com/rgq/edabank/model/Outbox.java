@@ -3,6 +3,9 @@ package com.rgq.edabank.model;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 @Entity
 @Table(name = "outbox", schema = "pos")
 public class Outbox {
@@ -14,6 +17,7 @@ public class Outbox {
     @Column(name = "aggregate_id")
     private String aggregateId;
     private String type;
+    @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
     private Boolean sent;
     @Column(name = "created_at")

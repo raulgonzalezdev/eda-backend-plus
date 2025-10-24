@@ -3,6 +3,9 @@ package com.rgq.edabank.model;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 @Entity
 @Table(name = "alerts", schema = "pos")
 public class Alert {
@@ -16,6 +19,7 @@ public class Alert {
     @Column(name = "source_type")
     private String sourceType;
     private double amount;
+    @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
     @Column(name = "kafka_partition")
     private Integer kafkaPartition;
