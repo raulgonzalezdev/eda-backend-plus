@@ -23,23 +23,9 @@ public class AlertsRepository {
 
     public void insertAlert(Alert a) {
         try {
-            // Log detallado para depuración
-            log.info("=== INICIO INSERCIÓN DE ALERTA ====");
-            log.info("Inserting alert with values: eventId={}, type={}, sourceType={}, amount={}", 
-                    a.getEventId(), a.getAlertType(), a.getSourceType(), a.getAmount());
-            log.info("Payload content: {}", a.getPayload());
-            log.info("Kafka metadata: partition={}, offset={}", a.getKafkaPartition(), a.getKafkaOffset());
-            
-            // Verificar si el payload es nulo o vacío
-            if (a.getPayload() == null || a.getPayload().isEmpty()) {
-                log.warn("ALERTA: El payload es nulo o vacío. Esto puede causar problemas con la conversión a JSONB");
-            }
-            
+            log.debug("Inserting alert eventId={}, type={}, payload={}", a.getEventId(), a.getAlertType(), a.getPayload());
             jdbc.update("INSERT INTO pos.alerts (event_id, alert_type, source_type, amount, payload, kafka_partition, kafka_offset) VALUES (?,?,?,?,CAST(? AS jsonb),?,?)",
                     a.getEventId(), a.getAlertType(), a.getSourceType(), a.getAmount(), a.getPayload(), a.getKafkaPartition(), a.getKafkaOffset());
-            
-            log.info("Alerta insertada correctamente");
-            log.info("=== FIN INSERCIÓN DE ALERTA ====");
         } catch (Exception e) {
             io.micrometer.core.instrument.Metrics.counter("persist.failures", "entity", "alert").increment();
             log.error("insertAlert failed for eventId={}, error:", a.getEventId(), e);

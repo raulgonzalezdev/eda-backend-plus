@@ -3,6 +3,7 @@ package com.rgq.edabank.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import com.fasterxml.jackson.annotation.JsonAlias;
 
 public class PaymentDto {
     @NotBlank
@@ -11,6 +12,7 @@ public class PaymentDto {
     @NotNull @Positive
     private Double amount;
     private String currency;
+    @JsonAlias({"account_id","accountId"})
     private String accountId;
 
     public String getId() { return id; }
