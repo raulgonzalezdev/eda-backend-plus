@@ -1,6 +1,8 @@
 package com.rgq.edabank.repository;
 
 import com.rgq.edabank.model.Alert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -12,6 +14,7 @@ import java.util.List;
 
 @Repository
 public class AlertsRepository {
+    private static final Logger log = LoggerFactory.getLogger(AlertsRepository.class);
     private final JdbcTemplate jdbc;
 
     public AlertsRepository(JdbcTemplate jdbc) {
@@ -20,10 +23,12 @@ public class AlertsRepository {
 
     public void insertAlert(Alert a) {
         try {
-            jdbc.update("INSERT INTO alerts (event_id, alert_type, source_type, amount, payload, kafka_partition, kafka_offset) VALUES (?,?,?,?,?::jsonb,?,?)",
+            log.debug("Inserting alert eventId={}, type={}, payload={}", a.getEventId(), a.getAlertType(), a.getPayload());
+            jdbc.update("INSERT INTO alerts (event_id, alert_type, source_type, amount, payload, kafka_partition, kafka_offset) VALUES (?,?,?,?,CAST(? AS jsonb),?,?)",
                     a.getEventId(), a.getAlertType(), a.getSourceType(), a.getAmount(), a.getPayload(), a.getKafkaPartition(), a.getKafkaOffset());
         } catch (Exception e) {
             io.micrometer.core.instrument.Metrics.counter("persist.failures", "entity", "alert").increment();
+            log.error("insertAlert failed for eventId={}, error:", a.getEventId(), e);
             throw e;
         }
     }

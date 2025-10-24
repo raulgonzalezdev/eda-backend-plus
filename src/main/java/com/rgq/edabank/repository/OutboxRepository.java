@@ -1,6 +1,8 @@
 package com.rgq.edabank.repository;
 
 import com.rgq.edabank.model.Outbox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -12,6 +14,7 @@ import java.util.List;
 
 @Repository
 public class OutboxRepository {
+    private static final Logger log = LoggerFactory.getLogger(OutboxRepository.class);
     private final JdbcTemplate jdbc;
 
     public OutboxRepository(JdbcTemplate jdbc) {
@@ -19,8 +22,14 @@ public class OutboxRepository {
     }
 
     public void insert(Outbox o) {
-        jdbc.update("INSERT INTO outbox (aggregate_type, aggregate_id, type, payload, sent) VALUES (?,?,?,?,false)",
-                o.getAggregateType(), o.getAggregateId(), o.getType(), o.getPayload());
+        try {
+            log.debug("Outbox.insert aggregateType={}, aggregateId={}, type={}, payload={}", o.getAggregateType(), o.getAggregateId(), o.getType(), o.getPayload());
+            jdbc.update("INSERT INTO outbox (aggregate_type, aggregate_id, type, payload, sent) VALUES (?,?,?,?,false)",
+                    o.getAggregateType(), o.getAggregateId(), o.getType(), o.getPayload());
+        } catch (Exception e) {
+            log.error("Outbox insert failed for aggregateId={}, error:", o.getAggregateId(), e);
+            throw e;
+        }
     }
 
     private final RowMapper<Outbox> mapper = new RowMapper<>() {
