@@ -22,13 +22,13 @@ public class SecurityConfig {
 
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http
-        .csrf(csrf -> csrf.disable())
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/actuator/health", "/auth/token").permitAll()
-            .anyRequest().authenticated()
-        )
-        .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()));
+  http
+    .csrf(csrf -> csrf.disable())
+    .authorizeHttpRequests(auth -> auth
+      .requestMatchers("/actuator/health", "/auth/token", "/auth/login").permitAll()
+      .anyRequest().authenticated()
+    )
+    .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()));
     return http.build();
   }
 
@@ -40,7 +40,8 @@ public class SecurityConfig {
 
   @Bean
   public WebSecurityCustomizer webSecurityCustomizer() {
-    // Allow the dev token endpoint to be accessed without authentication
-    return (web) -> web.ignoring().requestMatchers("/auth/token");
+  // Not using web.ignoring(); endpoints are permitted via HttpSecurity
+  return (web) -> {
+  };
   }
 }
