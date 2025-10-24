@@ -24,7 +24,7 @@ public class OutboxRepository {
     public void insert(Outbox o) {
         try {
             log.debug("Outbox.insert aggregateType={}, aggregateId={}, type={}, payload={}", o.getAggregateType(), o.getAggregateId(), o.getType(), o.getPayload());
-            jdbc.update("INSERT INTO pos.outbox (aggregate_type, aggregate_id, type, payload, sent) VALUES (?,?,?,?,false)",
+            jdbc.update("INSERT INTO pos.outbox (aggregate_type, aggregate_id, type, payload, sent) VALUES (?,?,?,CAST(? AS jsonb),false)",
                     o.getAggregateType(), o.getAggregateId(), o.getType(), o.getPayload());
         } catch (Exception e) {
             log.error("Outbox insert failed for aggregateId={}, error:", o.getAggregateId(), e);
