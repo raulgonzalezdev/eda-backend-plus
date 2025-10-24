@@ -1,5 +1,6 @@
 package com.rgq.edabank.controller;
 
+import com.rgq.edabank.dto.UserDto;
 import com.rgq.edabank.model.User;
 import com.rgq.edabank.service.JwtService;
 import com.rgq.edabank.service.UserService;
@@ -11,7 +12,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.HashMap;
 
 @RestController
 public class UserController {
@@ -25,74 +25,48 @@ public class UserController {
     }
 
     @GetMapping("/users")
-    public ResponseEntity<List<Map<String,Object>>> list() {
+    public ResponseEntity<List<UserDto>> list() {
         var users = userService.findAll();
-        List<Map<String,Object>> out = users.stream().map(u -> {
-            Map<String,Object> m = new HashMap<>();
-            m.put("id", u.getId());
-            m.put("email", u.getEmail());
-            m.put("firstName", u.getFirstName());
-            m.put("lastName", u.getLastName());
-            m.put("role", u.getRole());
-            return m;
-        }).collect(Collectors.toList());
+        List<UserDto> out = users.stream().map(this::convertToDto).collect(Collectors.toList());
         return ResponseEntity.ok(out);
     }
 
     @GetMapping("/users/{id}")
-    public ResponseEntity<?> get(@PathVariable UUID id) {
+    public ResponseEntity<UserDto> get(@PathVariable UUID id) {
         Optional<User> u = userService.findById(id);
-        return u.map(user -> ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "email", user.getEmail(),
-                "firstName", user.getFirstName(),
-                "lastName", user.getLastName(),
-                "role", user.getRole()
-        ))).orElseGet(() -> ResponseEntity.notFound().build());
+        return u.map(user -> ResponseEntity.ok(convertToDto(user))).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping("/users")
-    public ResponseEntity<?> create(@RequestBody Map<String, Object> body) {
-        String email = (String) body.get("email");
-        String password = (String) body.get("password");
+    public ResponseEntity<?> create(@RequestBody UserDto body) {
+        String email = body.getEmail();
+        String password = body.getPassword();
         if (email == null || password == null) return ResponseEntity.badRequest().body("email and password required");
         User u = new User();
         u.setEmail(email);
-        u.setFirstName((String) body.get("firstName"));
-        u.setLastName((String) body.get("lastName"));
-        u.setRole((String) body.getOrDefault("role", "PATIENT"));
-    // check uniqueness
-    if (userService.findByEmail(email).isPresent()) {
-        return ResponseEntity.status(409).body("email already exists");
-    }
-    User savedUser = userService.create(u, password);
-    return ResponseEntity.ok(Map.of(
-        "id", savedUser.getId(),
-        "email", savedUser.getEmail(),
-        "firstName", savedUser.getFirstName(),
-        "lastName", savedUser.getLastName(),
-        "role", savedUser.getRole()
-    ));
+        u.setFirstName(body.getFirstName());
+        u.setLastName(body.getLastName());
+        u.setRole(body.getRole() != null ? body.getRole() : "PATIENT");
+        // check uniqueness
+        if (userService.findByEmail(email).isPresent()) {
+            return ResponseEntity.status(409).body("email already exists");
+        }
+        User savedUser = userService.create(u, password);
+        return ResponseEntity.ok(convertToDto(savedUser));
     }
 
     @PutMapping("/users/{id}")
-    public ResponseEntity<?> update(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> update(@PathVariable UUID id, @RequestBody UserDto body) {
         Optional<User> ou = userService.findById(id);
         if (ou.isEmpty()) return ResponseEntity.notFound().build();
         User u = ou.get();
-        u.setEmail((String) body.getOrDefault("email", u.getEmail()));
-        u.setFirstName((String) body.getOrDefault("firstName", u.getFirstName()));
-        u.setLastName((String) body.getOrDefault("lastName", u.getLastName()));
-        u.setRole((String) body.getOrDefault("role", u.getRole()));
-        String newPass = (String) body.get("password");
-    User savedUser = userService.update(u, newPass);
-    return ResponseEntity.ok(Map.of(
-        "id", savedUser.getId(),
-        "email", savedUser.getEmail(),
-        "firstName", savedUser.getFirstName(),
-        "lastName", savedUser.getLastName(),
-        "role", savedUser.getRole()
-    ));
+        u.setEmail(body.getEmail() != null ? body.getEmail() : u.getEmail());
+        u.setFirstName(body.getFirstName() != null ? body.getFirstName() : u.getFirstName());
+        u.setLastName(body.getLastName() != null ? body.getLastName() : u.getLastName());
+        u.setRole(body.getRole() != null ? body.getRole() : u.getRole());
+        String newPass = body.getPassword();
+        User savedUser = userService.update(u, newPass);
+        return ResponseEntity.ok(convertToDto(savedUser));
     }
 
     @DeleteMapping("/users/{id}")
@@ -112,5 +86,9 @@ public class UserController {
         if (!userService.verifyPassword(user, password)) return ResponseEntity.status(401).body("invalid credentials");
         String token = jwtService.createToken(user.getEmail(), "user");
         return ResponseEntity.ok(Map.of("token", token));
+    }
+
+    private UserDto convertToDto(User user) {
+        return new UserDto(user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole());
     }
 }
