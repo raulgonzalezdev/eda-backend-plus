@@ -7,27 +7,62 @@ Backend de Spring Boot que implementa una arquitectura EDA (Event-Driven Archite
 ### Prerrequisitos
 - Java 17
 - Maven 3.9+
-- Docker
+- (Opcional) Kafka y PostgreSQL locales
+- (Opcional) Docker para levantar servicios cuando lo necesites
 
-### Configuración
-Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
+### Perfiles disponibles
+- Perfil `local` — sin Kafka; arranca rápido para endpoints y lógica básica.
+- Perfil `dev` — con Kafka activo; conecta a servicios locales.
+
+### Configuración rápida (variables locales)
+Crea un archivo `.env.local` en la raíz del proyecto con las siguientes variables (no afecta Docker):
 
 ```
-# JWT
-JWT_SECRET=your-super-secret-key
+# JWT (local)
+JWT_SECRET=dev-super-secret-change-me
 
-# Base de datos PostgreSQL
+# Base de datos PostgreSQL (local)
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=postgres
 DB_USER=postgres
 DB_PASSWORD=postgres
 
-# Umbral para alertas de transacciones
+# Umbral para alertas
 ALERT_THRESHOLD=10000
 ```
 
-### Ejecución
+El `application.yml` ya importa `.env.local` de forma opcional.
+
+### Arranque rápido
+- Local (sin Kafka):
+  ```powershell
+  .\scripts\run-local.ps1 -SkipTests
+  ```
+- Dev (Kafka activo):
+  ```powershell
+  .\scripts\run-dev.ps1 -SkipTests
+  ```
+  Si tu Kafka expone `localhost:9094`:
+  ```powershell
+  .\scripts\run-dev.ps1 -SkipTests -KafkaBootstrapServers localhost:9094
+  ```
+
+Si en algún terminal `mvn` no se reconoce, ejecuta:
+```powershell
+& "D:\eda-backend-plus\scripts\set-java17.ps1"
+```
+O agrega esa línea a tu perfil de PowerShell (`notepad $PROFILE`) para aplicarla en cada sesión.
+
+### Kafka local (Windows)
+- Define `KAFKA_HOME` (ej: `C:\Kafka\kafka_2.13-3.7.0`).
+- Arranca Kafka (modo KRaft) según la guía oficial.
+- Crea los tópicos requeridos:
+  ```powershell
+  .\scripts\create-topics.ps1 -BootstrapServers localhost:9092
+  ```
+
+### Con Docker Compose (alternativa)
 Puedes levantar todo el entorno (app, Kafka, Zookeeper) con Docker Compose:
 
 ```bash

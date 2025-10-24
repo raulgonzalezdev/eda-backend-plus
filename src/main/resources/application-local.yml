@@ -1,0 +1,11 @@
+app:
+  kafka:
+    enabled: false
+
+spring:
+  kafka:
+    streams:
+      auto-startup: false
+  datasource:
+    hikari:
+      initialization-fail-timeout: -1
