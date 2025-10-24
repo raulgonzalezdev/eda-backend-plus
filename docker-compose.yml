@@ -10,6 +10,21 @@ services:
     networks:
       - kafka-network
 
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: postgres-local
+    environment:
+      POSTGRES_DB: sasdatqbox
+      POSTGRES_USER: sas_user
+      POSTGRES_PASSWORD: ML!gsx90l02
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    networks:
+      - kafka-network
+
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: kafka
@@ -100,23 +115,22 @@ services:
       - kafka
       - kafka2
       - kafka3
+      - postgres
     env_file:
       - .env
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
       - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
-      - DB_HOST=${DB_HOST:-sasdatqbox-db-1}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_NAME=${DB_NAME:-postgres}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=sasdatqbox
+      - DB_USER=sas_user
+      - DB_PASSWORD=ML!gsx90l02
     ports:
       - "8080:8080"
     networks:
       - kafka-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
 networks:
   kafka-network:
@@ -126,3 +140,4 @@ volumes:
   kafka_data_1: {}
   kafka_data_2: {}
   kafka_data_3: {}
+  postgres_data: {}

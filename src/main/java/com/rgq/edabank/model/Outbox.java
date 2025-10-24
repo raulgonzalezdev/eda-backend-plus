@@ -32,6 +32,11 @@ public class Outbox {
     public void setAggregateId(String aggregateId) { this.aggregateId = aggregateId; }
     public String getEventType() { return eventType; }
     public void setEventType(String eventType) { this.eventType = eventType; }
+    
+    // Alias methods for compatibility with existing code
+    public String getType() { return eventType; }
+    public void setType(String type) { this.eventType = type; }
+    
     public String getPayload() { return payload; }
     public void setPayload(String payload) { this.payload = payload; }
     public Boolean getSent() { return sent; }

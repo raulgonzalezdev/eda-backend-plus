@@ -2,9 +2,13 @@
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /workspace
 COPY pom.xml .
-RUN mvn -q -e -B -DskipTests dependency:go-offline
+# Use offline mode if dependencies are already cached
+RUN mvn -q -e -B -DskipTests dependency:resolve-sources dependency:resolve || \
+    mvn -q -e -B -DskipTests dependency:go-offline -o || \
+    mvn -q -e -B -DskipTests dependency:go-offline
 COPY src ./src
-RUN mvn -q -e -B -DskipTests package
+RUN mvn -q -e -B -DskipTests package -o || \
+    mvn -q -e -B -DskipTests package
 
 # Run stage
 FROM eclipse-temurin:17-jre-jammy

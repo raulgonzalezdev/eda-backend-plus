@@ -54,9 +54,4 @@ public class TopologyConfig {
     alerts.to("alerts.suspect", Produced.with(stringSerde, stringSerde));
     return merged;
   }
-
-  @Bean
-  public StreamsBuilder streamsBuilder() {
-    return new StreamsBuilder();
-  }
 }
