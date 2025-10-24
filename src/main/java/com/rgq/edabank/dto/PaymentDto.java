@@ -23,4 +23,15 @@ public class PaymentDto {
     public void setCurrency(String currency) { this.currency = currency; }
     public String getAccountId() { return accountId; }
     public void setAccountId(String accountId) { this.accountId = accountId; }
+
+    @Override
+    public String toString() {
+        return "PaymentDto{" +
+                "id='" + id + '\'' +
+                ", type='" + type + '\'' +
+                ", amount=" + amount +
+                ", currency='" + currency + '\'' +
+                ", accountId='" + accountId + '\'' +
+                '}';
+    }
 }

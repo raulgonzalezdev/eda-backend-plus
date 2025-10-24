@@ -24,7 +24,7 @@ public class OutboxRepository {
     public void insert(Outbox o) {
         try {
             log.debug("Outbox.insert aggregateType={}, aggregateId={}, type={}, payload={}", o.getAggregateType(), o.getAggregateId(), o.getType(), o.getPayload());
-            jdbc.update("INSERT INTO outbox (aggregate_type, aggregate_id, type, payload, sent) VALUES (?,?,?,?,false)",
+            jdbc.update("INSERT INTO pos.outbox (aggregate_type, aggregate_id, type, payload, sent) VALUES (?,?,?,CAST(? AS jsonb),false)",
                     o.getAggregateType(), o.getAggregateId(), o.getType(), o.getPayload());
         } catch (Exception e) {
             log.error("Outbox insert failed for aggregateId={}, error:", o.getAggregateId(), e);
@@ -48,10 +48,10 @@ public class OutboxRepository {
     };
 
     public List<Outbox> fetchUnsent(int limit) {
-        return jdbc.query("SELECT id,aggregate_type,aggregate_id,type,payload,sent,created_at FROM outbox WHERE sent=false ORDER BY created_at ASC LIMIT ?", new Object[]{limit}, mapper);
+        return jdbc.query("SELECT id,aggregate_type,aggregate_id,type,payload,sent,created_at FROM pos.outbox WHERE sent=false ORDER BY created_at ASC LIMIT ?", new Object[]{limit}, mapper);
     }
 
     public void markSent(Long id) {
-        jdbc.update("UPDATE outbox SET sent=true WHERE id=?", id);
+        jdbc.update("UPDATE pos.outbox SET sent=true WHERE id=?", id);
     }
 }

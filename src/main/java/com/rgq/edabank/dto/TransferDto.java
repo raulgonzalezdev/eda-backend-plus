@@ -23,4 +23,15 @@ public class TransferDto {
     public void setFrom(String from) { this.from = from; }
     public String getTo() { return to; }
     public void setTo(String to) { this.to = to; }
+
+    @Override
+    public String toString() {
+        return "TransferDto{" +
+                "id='" + id + '\'' +
+                ", type='" + type + '\'' +
+                ", amount=" + amount +
+                ", from='" + from + '\'' +
+                ", to='" + to + '\'' +
+                '}';
+    }
 }
