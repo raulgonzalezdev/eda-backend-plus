@@ -27,7 +27,8 @@ DB_PASSWORD=postgres
 ALERT_THRESHOLD=10000
 ```
 
-### Ejecución
+### Con Docker Compose (alternativa)
+
 Puedes levantar todo el entorno (app, Kafka, Zookeeper) con Docker Compose:
 
 ```bash
@@ -35,6 +36,22 @@ docker-compose up --build
 ```
 
 La aplicación estará disponible en `http://localhost:8080`.
+
+#### Flujo de Desarrollo con Docker
+
+Para un ciclo de desarrollo más rápido, puedes dejar los servicios de infraestructura (Kafka, Zookeeper) corriendo y solo reconstruir tu aplicación:
+
+1.  **Verificar contenedores activos**:
+
+    ```bash
+    docker-compose ps
+    ```
+
+2.  **Reconstruir y reiniciar solo la aplicación**:
+
+    ```bash
+    docker-compose up -d --no-deps --build app
+    ```
 
 ## 2. Endpoints de la API
 
