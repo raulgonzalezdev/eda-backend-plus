@@ -14,7 +14,7 @@ public class TransferRepository {
 
     public void insertTransfer(Transfer t) {
         try {
-            jdbc.update("INSERT INTO pos.transfers (id,type,amount,from_account,to_account,payload) VALUES (?,?,?,?,?,?::jsonb)",
+            jdbc.update("INSERT INTO transfers (id,type,amount,from_account,to_account,payload) VALUES (?,?,?,?,?,?::jsonb)",
                     t.getId(), t.getType(), t.getAmount(), t.getFromAccount(), t.getToAccount(), t.getPayload());
         } catch (Exception e) {
             io.micrometer.core.instrument.Metrics.counter("persist.failures", "entity", "transfer").increment();
