@@ -39,7 +39,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
       - kafka_data_1:/var/lib/kafka/data
     networks:
@@ -59,7 +59,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
       - kafka_data_2:/var/lib/kafka/data
     networks:
@@ -79,7 +79,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
       - kafka_data_3:/var/lib/kafka/data
     networks:
@@ -99,9 +99,9 @@ services:
         echo 'Waiting for Kafka cluster to be ready...'
         sleep 60
         echo 'Creating Kafka topics...'
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 3 || true
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 3 || true
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 3 || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 1 || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 1 || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 1 || true
         echo 'Topics created successfully!'
         echo 'Listing all topics:'
         kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --list || true
