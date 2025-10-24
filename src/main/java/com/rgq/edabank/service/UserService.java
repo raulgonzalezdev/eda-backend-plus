@@ -4,6 +4,7 @@ import com.rgq.edabank.model.User;
 import com.rgq.edabank.repository.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,10 +19,13 @@ public class UserService {
         this.repo = repo;
     }
 
+    @Transactional(readOnly = true)
     public List<User> findAll() { return repo.findAll(); }
 
+    @Transactional(readOnly = true)
     public Optional<User> findById(UUID id) { return repo.findById(id); }
 
+    @Transactional(readOnly = true)
     public Optional<User> findByEmail(String email) { return repo.findByEmail(email); }
 
     public User create(User u, String plainPassword) {

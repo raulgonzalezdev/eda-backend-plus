@@ -15,26 +15,63 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
-      - "9094:9094"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
     volumes:
-      - kafka_data:/var/lib/kafka/data
+      - kafka_data_1:/var/lib/kafka/data
+
+  kafka2:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka2
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    volumes:
+      - kafka_data_2:/var/lib/kafka/data
+
+  kafka3:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka3
+    depends_on:
+      - zookeeper
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    volumes:
+      - kafka_data_3:/var/lib/kafka/data
 
   app:
     build: .
     depends_on:
       - kafka
+      - kafka2
+      - kafka3
     env_file:
       - .env
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
       - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
       - DB_HOST=${DB_HOST:-sasdatqbox-db-1}
@@ -46,4 +83,6 @@ services:
       - "8080:8080"
 
 volumes:
-  kafka_data: {}
+  kafka_data_1: {}
+  kafka_data_2: {}
+  kafka_data_3: {}
