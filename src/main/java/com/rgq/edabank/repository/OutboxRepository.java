@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -13,7 +14,7 @@ import java.util.List;
 public interface OutboxRepository extends JpaRepository<Outbox, Long> {
 
     @Transactional(readOnly = true)
-    List<Outbox> findBySentFalseOrderByCreatedAtAsc();
+    List<Outbox> findBySentFalseOrderByCreatedAtAsc(Pageable pageable);
 
     @Modifying
     @Query("update Outbox o set o.sent = true where o.id = ?1")
