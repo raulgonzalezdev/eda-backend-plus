@@ -35,30 +35,30 @@ public class UserRepository {
     };
 
     public List<User> findAll() {
-        return jdbc.query("SELECT id,email,hashed_password,role,first_name,last_name FROM pos.users", mapper);
+        return jdbc.query("SELECT id,email,hashed_password,role,first_name,last_name FROM users", mapper);
     }
 
     public Optional<User> findById(UUID id) {
-        List<User> l = jdbc.query("SELECT id,email,hashed_password,role,first_name,last_name FROM pos.users WHERE id = ?", new Object[]{id}, mapper);
+        List<User> l = jdbc.query("SELECT id,email,hashed_password,role,first_name,last_name FROM users WHERE id = ?", new Object[]{id}, mapper);
         return l.isEmpty() ? Optional.empty() : Optional.of(l.get(0));
     }
 
     public Optional<User> findByEmail(String email) {
-        List<User> l = jdbc.query("SELECT id,email,hashed_password,role,first_name,last_name FROM pos.users WHERE email = ?", new Object[]{email}, mapper);
+        List<User> l = jdbc.query("SELECT id,email,hashed_password,role,first_name,last_name FROM users WHERE email = ?", new Object[]{email}, mapper);
         return l.isEmpty() ? Optional.empty() : Optional.of(l.get(0));
     }
 
     public void insert(User u) {
-        jdbc.update("INSERT INTO pos.users (id,email,hashed_password,role,first_name,last_name) VALUES (?,?,?,?,?,?)",
+        jdbc.update("INSERT INTO users (id,email,hashed_password,role,first_name,last_name) VALUES (?,?,?,?,?,?)",
                 u.getId(), u.getEmail(), u.getHashedPassword(), u.getRole(), u.getFirstName(), u.getLastName());
     }
 
     public int update(User u) {
-        return jdbc.update("UPDATE pos.users SET email=?, hashed_password=?, role=?, first_name=?, last_name=? WHERE id=?",
+        return jdbc.update("UPDATE users SET email=?, hashed_password=?, role=?, first_name=?, last_name=? WHERE id=?",
                 u.getEmail(), u.getHashedPassword(), u.getRole(), u.getFirstName(), u.getLastName(), u.getId());
     }
 
     public int delete(UUID id) {
-        return jdbc.update("DELETE FROM pos.users WHERE id=?", id);
+        return jdbc.update("DELETE FROM users WHERE id=?", id);
     }
 }
