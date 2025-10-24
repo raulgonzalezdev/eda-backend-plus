@@ -37,11 +37,11 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
-  - DB_HOST=${DB_HOST:sasdatqbox-db-1}
-  - DB_PORT=${DB_PORT:5432}
-  - DB_NAME=${DB_NAME:postgres}
-  - DB_USER=${DB_USER:postgres}
-  - DB_PASSWORD=${DB_PASSWORD:postgres}
+      - DB_HOST=${DB_HOST:sasdatqbox-db-1}
+      - DB_PORT=${DB_PORT:5432}
+      - DB_NAME=${DB_NAME:postgres}
+      - DB_USER=${DB_USER:postgres}
+      - DB_PASSWORD=${DB_PASSWORD:postgres}
     ports:
       - "8080:8080"
 
