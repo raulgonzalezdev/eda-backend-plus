@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.HashMap;
 
 @RestController
 public class UserController {
@@ -25,13 +27,15 @@ public class UserController {
     @GetMapping("/users")
     public ResponseEntity<List<Map<String,Object>>> list() {
         var users = userService.findAll();
-        var out = users.stream().map(u -> Map.of(
-                "id", u.getId(),
-                "email", u.getEmail(),
-                "firstName", u.getFirstName(),
-                "lastName", u.getLastName(),
-                "role", u.getRole()
-        )).toList();
+        List<Map<String,Object>> out = users.stream().map(u -> {
+            Map<String,Object> m = new HashMap<>();
+            m.put("id", u.getId());
+            m.put("email", u.getEmail());
+            m.put("firstName", u.getFirstName());
+            m.put("lastName", u.getLastName());
+            m.put("role", u.getRole());
+            return m;
+        }).collect(Collectors.toList());
         return ResponseEntity.ok(out);
     }
 
