@@ -16,6 +16,7 @@ public class Payment {
     private String id;
     private String type;
     private double amount;
+    @Column(name = "currency")
     private String currency;
     @Column(name = "account_id")
     private String accountId;

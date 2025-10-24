@@ -16,7 +16,8 @@ public class Outbox {
     private String aggregateType;
     @Column(name = "aggregate_id")
     private String aggregateId;
-    private String type;
+    @Column(name = "event_type")
+    private String eventType;
     @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
     private Boolean sent;
@@ -29,8 +30,8 @@ public class Outbox {
     public void setAggregateType(String aggregateType) { this.aggregateType = aggregateType; }
     public String getAggregateId() { return aggregateId; }
     public void setAggregateId(String aggregateId) { this.aggregateId = aggregateId; }
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
+    public String getEventType() { return eventType; }
+    public void setEventType(String eventType) { this.eventType = eventType; }
     public String getPayload() { return payload; }
     public void setPayload(String payload) { this.payload = payload; }
     public Boolean getSent() { return sent; }

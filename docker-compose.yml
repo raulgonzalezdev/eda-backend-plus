@@ -7,6 +7,8 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    networks:
+      - kafka-network
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -25,6 +27,8 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
     volumes:
       - kafka_data_1:/var/lib/kafka/data
+    networks:
+      - kafka-network
 
   kafka2:
     image: confluentinc/cp-kafka:7.4.0
@@ -43,6 +47,8 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
     volumes:
       - kafka_data_2:/var/lib/kafka/data
+    networks:
+      - kafka-network
 
   kafka3:
     image: confluentinc/cp-kafka:7.4.0
@@ -61,6 +67,32 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
     volumes:
       - kafka_data_3:/var/lib/kafka/data
+    networks:
+      - kafka-network
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka-init
+    depends_on:
+      - kafka
+      - kafka2
+      - kafka3
+    networks:
+      - kafka-network
+    command: >
+      bash -c "
+        echo 'Waiting for Kafka cluster to be ready...'
+        sleep 60
+        echo 'Creating Kafka topics...'
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 3 || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 3 || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 3 || true
+        echo 'Topics created successfully!'
+        echo 'Listing all topics:'
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --list || true
+        echo 'Topic creation completed. Container will exit.'
+      "
+    restart: "no"
 
   app:
     build: .
@@ -81,6 +113,14 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
     ports:
       - "8080:8080"
+    networks:
+      - kafka-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  kafka-network:
+    driver: bridge
 
 volumes:
   kafka_data_1: {}

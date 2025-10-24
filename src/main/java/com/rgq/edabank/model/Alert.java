@@ -18,7 +18,8 @@ public class Alert {
     private String alertType;
     @Column(name = "source_type")
     private String sourceType;
-    private double amount;
+    @Column(name = "amount")
+    private Double amount;
     @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
     @Column(name = "kafka_partition")

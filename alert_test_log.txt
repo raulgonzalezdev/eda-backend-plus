@@ -1,9 +1,22 @@
-[2025-10-24 11:43:55] --- INICIO DE LA PRUEBA DE ALERTAS ---
-[2025-10-24 11:43:55] Esperando 10 segundos a que la aplicación se inicie por completo...
-[2025-10-24 11:44:05] Paso 1: Obteniendo token JWT...
-[2025-10-24 11:44:06] Token JWT obtenido exitosamente.
-[2025-10-24 11:44:06] Token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJzY29wZSI6IlVTRVIiLCJpc3MiOiJkZW1vLWlzc3VlciIsImV4cCI6MTc2MTMyNDI0NywiaWF0IjoxNzYxMzIwNjQ3LCJqdGkiOiJkMDg0ZmUxNy1jZGZhLTQ1NjEtODE2ZC1hZGFlNjRlOTJhZjcifQ.Ra17VLsg13Ra5BOdTCIgGq71N4XA8Kh3sL1QFyknAko
-[2025-10-24 11:44:06] 
+[2025-10-24 14:55:58] --- INICIO DE LA PRUEBA DE ALERTAS ---
+[2025-10-24 14:55:58] Esperando 10 segundos a que la aplicación se inicie por completo...
+[2025-10-24 14:56:08] Paso 1: Obteniendo token JWT...
+[2025-10-24 14:56:08] Token JWT obtenido exitosamente.
+[2025-10-24 14:56:08] Token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJzY29wZSI6IlVTRVIiLCJpc3MiOiJkZW1vLWlzc3VlciIsImV4cCI6MTc2MTMzNTc3MCwiaWF0IjoxNzYxMzMyMTcwLCJqdGkiOiJiZDM3ZTczMi1kMjRhLTQ0ODItOTE0OS05OTg0ZjE1ZGFkZjYifQ.8IZEuL_isYNGkUNo7Nm9jfmQp_RT87TOuTYEs8t0-d4
+[2025-10-24 14:56:08] 
 Paso 2: Enviando transacción de pago sospechosa (monto: 15000)...
-[2025-10-24 11:44:06] ERROR: Falló el envío de la transacción.
-[2025-10-24 11:44:06] Error en el servidor remoto: (500) Error interno del servidor.
+[2025-10-24 14:56:09] Transacción enviada. Código de respuesta: 200
+[2025-10-24 14:56:09] Respuesta: published: payments.events key=c14a9a04-e140-404b-8816-f7a6f9cc10ae
+[2025-10-24 14:56:09] 
+Pausa de 5 segundos para el procesamiento asíncrono...
+[2025-10-24 14:56:14] 
+Paso 3: Verificando si la alerta fue persistida en la base de datos...
+[2025-10-24 14:56:14] Consulta a la base de datos de alertas exitosa. Código de respuesta: 200
+[2025-10-24 14:56:14] Alertas en la BD: []
+[2025-10-24 14:56:14] 
+Paso 4: Consumiendo la alerta desde el topic de Kafka 'alerts.suspect'...
+[2025-10-24 14:56:20] Consumo del topic de Kafka exitoso. Código de respuesta: 200
+[2025-10-24 14:56:20] Alerta consumida de Kafka: []
+[2025-10-24 14:56:20] 
+--- FIN DE LA PRUEBA DE ALERTAS ---
+[2025-10-24 14:56:20] Revisa el archivo 'alert_test_log.txt' para ver el detalle completo.

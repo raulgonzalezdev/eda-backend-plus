@@ -15,7 +15,7 @@ public class Transfer {
     @Id
     private String id;
     private String type;
-    private double amount;
+    private Double amount;
     @Column(name = "from_account")
     private String fromAccount;
     @Column(name = "to_account")
