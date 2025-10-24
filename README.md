@@ -152,3 +152,71 @@ kubectl apply -f k8s/keda-scaledobject.yaml
 ```
 
 ```
+ (fragmento: Endpoints)
+### Endpoints disponibles
+
+- GET /api/hello  
+  - Descripción: Comprobación rápida del servicio.  
+  - Respuesta: { "ok": true, "service": "eda-backend" }
+
+- GET /api/health  
+  - Descripción: Estado del servicio.
+
+- GET /auth/token?sub=<user>&scope=<scope>  
+  - Descripción: Genera un token JWT de prueba. Parámetros opcionales `sub` y `scope`.  
+
+- GET /alerts?timeoutMs=<ms>  
+  - Descripción: Consume mensajes del topic `alerts.suspect` de Kafka (lee directamente de Kafka en tiempo real).  
+  - Nota: requiere acceso al bootstrap Kafka configurado por variable `KAFKA_BOOTSTRAP_SERVERS`.
+
+- GET /alerts-db  
+  - Descripción: Lista de registros de la tabla `alerts` (lee desde la BD).
+
+- GET /db/ping  
+  - Descripción: Ejecuta `SELECT 1` para comprobar conectividad con la base de datos.
+
+- GET /users  
+  - Descripción: Lista usuarios (depende de la tabla `users` en la BD).  
+  - Posibles errores: 500 si la tabla `users` no existe o la BD no es accesible.
+
+- GET /users/{id}  
+  - Descripción: Obtiene usuario por UUID.
+
+- POST /users  
+  - Descripción: Crea usuario. Body JSON esperado: `{ "email":"x", "password":"x", "firstName":"x", "lastName":"x", "role":"PATIENT" }`
+
+- PUT /users/{id}  
+  - Descripción: Actualiza usuario.
+
+- POST /events/payments  
+  - Descripción: Persiste un payment y lo encola en outbox para publicación en Kafka. Body ejemplo:
+    ```json
+    {"id":"p-123","type":"payment","amount":12000,"currency":"EUR","accountId":"acc-1"}
+    ```
+  - Nota: requiere tablas `payments` y `outbox` (o `pos.payments`/`pos.outbox` si usas esquema pos).
+
+- POST /events/transfers  
+  - Descripción: Persiste transfer y encola en outbox. Body ejemplo:
+    ```json
+    {"id":"t-456","type":"transfer","amount":15000,"from":"acc-1","to":"acc-2"}
+    ```
+
+#### Notas sobre dependencias DB/Kafka
+- Endpoints que acceden a la BD (reads/writes): `/db/ping`, `/users*`, `/alerts-db`, `/events/*`.
+- Endpoints que acceden a Kafka: `/alerts` (consumer directo), `/events/*` (produce mediante outbox/kafka).
+- Si usas esquema `pos` en la base de datos, asegúrate de ejecutar `sql/create_pos_schema_and_tables.sql` provisto o de cambiar las consultas para usar el esquema público.
+
+#### Cómo probar y depurar (comandos)
+1. Probar DB ping:
+   - `curl -sS http://localhost:8080/db/ping`
+2. Probar listar usuarios:
+   - `curl -sS http://localhost:8080/users`
+3. Probar crear payment:
+   - `curl -v -X POST http://localhost:8080/events/payments -H "Content-Type: application/json" -d '{"id":"p-123","type":"payment","amount":12000,"currency":"EUR","accountId":"acc-1"}'`
+4. Habilitar logs para depuración (temporal):
+   - En `src/main/resources/application.properties` añade:
+     ```
+     logging.level.com.rgq.edabank=DEBUG
+     logging.level.org.springframework.jdbc.core.JdbcTemplate=DEBUG
+     ```
+   - Reinicia la app y reproduce el error; copia aquí el stacktrace si necesitas ayuda adicional.
