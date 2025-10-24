@@ -24,7 +24,7 @@ public class AlertsRepository {
     public void insertAlert(Alert a) {
         try {
             log.debug("Inserting alert eventId={}, type={}, payload={}", a.getEventId(), a.getAlertType(), a.getPayload());
-            jdbc.update("INSERT INTO alerts (event_id, alert_type, source_type, amount, payload, kafka_partition, kafka_offset) VALUES (?,?,?,?,CAST(? AS jsonb),?,?)",
+            jdbc.update("INSERT INTO pos.alerts (event_id, alert_type, source_type, amount, payload, kafka_partition, kafka_offset) VALUES (?,?,?,?,CAST(? AS jsonb),?,?)",
                     a.getEventId(), a.getAlertType(), a.getSourceType(), a.getAmount(), a.getPayload(), a.getKafkaPartition(), a.getKafkaOffset());
         } catch (Exception e) {
             io.micrometer.core.instrument.Metrics.counter("persist.failures", "entity", "alert").increment();
@@ -49,6 +49,6 @@ public class AlertsRepository {
     };
 
     public List<Alert> findAll() {
-        return jdbc.query("SELECT id,event_id,alert_type,source_type,amount,payload,created_at FROM alerts ORDER BY created_at DESC LIMIT 100", mapper);
+        return jdbc.query("SELECT id,event_id,alert_type,source_type,amount,payload,created_at FROM pos.alerts ORDER BY created_at DESC LIMIT 100", mapper);
     }
 }

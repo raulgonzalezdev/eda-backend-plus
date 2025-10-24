@@ -18,7 +18,7 @@ public class PaymentRepository {
     public void insertPayment(Payment p) {
         try {
             log.debug("Inserting payment id={}, accountId={}, payload={}", p.getId(), p.getAccountId(), p.getPayload());
-            jdbc.update("INSERT INTO payments (id,type,amount,currency,account_id,payload) VALUES (?,?,?,?,?,CAST(? AS jsonb))",
+            jdbc.update("INSERT INTO pos.payments (id,type,amount,currency,account_id,payload) VALUES (?,?,?,?,?,CAST(? AS jsonb))",
                     p.getId(), p.getType(), p.getAmount(), p.getCurrency(), p.getAccountId(), p.getPayload());
         } catch (Exception e) {
             io.micrometer.core.instrument.Metrics.counter("persist.failures", "entity", "payment").increment();
