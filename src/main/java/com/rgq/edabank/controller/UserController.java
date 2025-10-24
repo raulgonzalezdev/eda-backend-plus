@@ -65,13 +65,13 @@ public class UserController {
     if (userService.findByEmail(email).isPresent()) {
         return ResponseEntity.status(409).body("email already exists");
     }
-    userService.create(u, password);
+    User savedUser = userService.create(u, password);
     return ResponseEntity.ok(Map.of(
-        "id", u.getId(),
-        "email", u.getEmail(),
-        "firstName", u.getFirstName(),
-        "lastName", u.getLastName(),
-        "role", u.getRole()
+        "id", savedUser.getId(),
+        "email", savedUser.getEmail(),
+        "firstName", savedUser.getFirstName(),
+        "lastName", savedUser.getLastName(),
+        "role", savedUser.getRole()
     ));
     }
 
@@ -85,20 +85,20 @@ public class UserController {
         u.setLastName((String) body.getOrDefault("lastName", u.getLastName()));
         u.setRole((String) body.getOrDefault("role", u.getRole()));
         String newPass = (String) body.get("password");
-    userService.update(u, newPass);
+    User savedUser = userService.update(u, newPass);
     return ResponseEntity.ok(Map.of(
-        "id", u.getId(),
-        "email", u.getEmail(),
-        "firstName", u.getFirstName(),
-        "lastName", u.getLastName(),
-        "role", u.getRole()
+        "id", savedUser.getId(),
+        "email", savedUser.getEmail(),
+        "firstName", savedUser.getFirstName(),
+        "lastName", savedUser.getLastName(),
+        "role", savedUser.getRole()
     ));
     }
 
     @DeleteMapping("/users/{id}")
     public ResponseEntity<?> delete(@PathVariable UUID id) {
-        int r = userService.delete(id);
-        return ResponseEntity.ok(Map.of("deleted", r));
+        userService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/auth/login")

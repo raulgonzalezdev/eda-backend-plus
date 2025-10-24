@@ -1,14 +1,22 @@
 package com.rgq.edabank.model;
 
+import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
+@Entity
+@Table(name = "outbox", schema = "pos")
 public class Outbox {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "aggregate_type")
     private String aggregateType;
+    @Column(name = "aggregate_id")
     private String aggregateId;
     private String type;
     private String payload;
     private Boolean sent;
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
     public Long getId() { return id; }

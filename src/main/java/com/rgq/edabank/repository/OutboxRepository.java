@@ -1,57 +1,19 @@
 package com.rgq.edabank.repository;
 
 import com.rgq.edabank.model.Outbox;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.OffsetDateTime;
 import java.util.List;
 
 @Repository
-public class OutboxRepository {
-    private static final Logger log = LoggerFactory.getLogger(OutboxRepository.class);
-    private final JdbcTemplate jdbc;
+public interface OutboxRepository extends JpaRepository<Outbox, Long> {
 
-    public OutboxRepository(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
-    }
+    List<Outbox> findBySentFalseOrderByCreatedAtAsc();
 
-    public void insert(Outbox o) {
-        try {
-            log.debug("Outbox.insert aggregateType={}, aggregateId={}, type={}, payload={}", o.getAggregateType(), o.getAggregateId(), o.getType(), o.getPayload());
-            jdbc.update("INSERT INTO pos.outbox (aggregate_type, aggregate_id, type, payload, sent) VALUES (?,?,?,CAST(? AS jsonb),false)",
-                    o.getAggregateType(), o.getAggregateId(), o.getType(), o.getPayload());
-        } catch (Exception e) {
-            log.error("Outbox insert failed for aggregateId={}, error:", o.getAggregateId(), e);
-            throw e;
-        }
-    }
-
-    private final RowMapper<Outbox> mapper = new RowMapper<>() {
-        @Override
-        public Outbox mapRow(ResultSet rs, int rowNum) throws SQLException {
-            Outbox o = new Outbox();
-            o.setId(rs.getLong("id"));
-            o.setAggregateType(rs.getString("aggregate_type"));
-            o.setAggregateId(rs.getString("aggregate_id"));
-            o.setType(rs.getString("type"));
-            o.setPayload(rs.getString("payload"));
-            o.setSent(rs.getBoolean("sent"));
-            o.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
-            return o;
-        }
-    };
-
-    public List<Outbox> fetchUnsent(int limit) {
-        return jdbc.query("SELECT id,aggregate_type,aggregate_id,type,payload,sent,created_at FROM pos.outbox WHERE sent=false ORDER BY created_at ASC LIMIT ?", new Object[]{limit}, mapper);
-    }
-
-    public void markSent(Long id) {
-        jdbc.update("UPDATE pos.outbox SET sent=true WHERE id=?", id);
-    }
+    @Modifying
+    @Query("update Outbox o set o.sent = true where o.id = ?1")
+    void markSent(Long id);
 }

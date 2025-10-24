@@ -44,11 +44,11 @@ public class EventsController {
             p.setAccountId(dto.getAccountId());
             p.setPayload(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto));
             log.debug("Payment model prepared: id={}, accountId={}, payload={}", p.getId(), p.getAccountId(), p.getPayload());
-            paymentRepo.insertPayment(p);
+            paymentRepo.save(p);
             // insert into outbox for durable publish
             com.rgq.edabank.model.Outbox o = new com.rgq.edabank.model.Outbox();
             o.setAggregateType("payment"); o.setAggregateId(p.getId()); o.setType("payments.events"); o.setPayload(p.getPayload());
-            outboxRepo.insert(o);
+            outboxRepo.save(o);
         } catch (Exception e) {
             log.error("Failed to persist or publish payment DTO: {} , error: ", dto, e);
             return ResponseEntity.status(500).body("failed to persist or publish: " + e.getMessage());
@@ -69,10 +69,10 @@ public class EventsController {
             t.setToAccount(dto.getTo());
             t.setPayload(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto));
             log.debug("Transfer model prepared: id={}, from={}, to={}, payload={}", t.getId(), t.getFromAccount(), t.getToAccount(), t.getPayload());
-            transferRepo.insertTransfer(t);
+            transferRepo.save(t);
             com.rgq.edabank.model.Outbox o = new com.rgq.edabank.model.Outbox();
             o.setAggregateType("transfer"); o.setAggregateId(t.getId()); o.setType("transfers.events"); o.setPayload(t.getPayload());
-            outboxRepo.insert(o);
+            outboxRepo.save(o);
         } catch (Exception e) {
             log.error("Failed to persist or publish transfer DTO: {} , error: ", dto, e);
             return ResponseEntity.status(500).body("failed to persist or publish: " + e.getMessage());

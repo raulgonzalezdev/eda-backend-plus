@@ -1,14 +1,24 @@
 package com.rgq.edabank.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
+@Entity
+@Table(name = "payments", schema = "pos")
 public class Payment {
+    @Id
     private String id;
     private String type;
     private double amount;
     private String currency;
+    @Column(name = "account_id")
     private String accountId;
+    @Column(columnDefinition = "jsonb")
     private String payload;
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
     public String getId() { return id; }

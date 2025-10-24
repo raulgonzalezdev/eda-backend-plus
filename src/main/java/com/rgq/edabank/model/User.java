@@ -1,13 +1,21 @@
 package com.rgq.edabank.model;
 
+import jakarta.persistence.*;
 import java.util.UUID;
 
+@Entity
+@Table(name = "users", schema = "pos")
 public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
     private String email;
+    @Column(name = "hashed_password")
     private String hashedPassword;
     private String role;
+    @Column(name = "first_name")
     private String firstName;
+    @Column(name = "last_name")
     private String lastName;
 
     public User() {}

@@ -1,16 +1,27 @@
 package com.rgq.edabank.model;
 
+import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
+@Entity
+@Table(name = "alerts", schema = "pos")
 public class Alert {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "event_id")
     private String eventId;
+    @Column(name = "alert_type")
     private String alertType;
+    @Column(name = "source_type")
     private String sourceType;
     private double amount;
     private String payload;
+    @Column(name = "kafka_partition")
     private Integer kafkaPartition;
+    @Column(name = "kafka_offset")
     private Long kafkaOffset;
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
     public Long getId() { return id; }

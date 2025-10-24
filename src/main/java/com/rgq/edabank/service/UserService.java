@@ -25,20 +25,18 @@ public class UserService {
     public Optional<User> findByEmail(String email) { return repo.findByEmail(email); }
 
     public User create(User u, String plainPassword) {
-        u.setId(UUID.randomUUID());
         u.setHashedPassword(BCrypt.hashpw(plainPassword, BCrypt.gensalt()));
-        repo.insert(u);
-        return u;
+        return repo.save(u);
     }
 
-    public int update(User u, String plainPassword) {
+    public User update(User u, String plainPassword) {
         if (plainPassword != null && !plainPassword.isEmpty()) {
             u.setHashedPassword(BCrypt.hashpw(plainPassword, BCrypt.gensalt()));
         }
-        return repo.update(u);
+        return repo.save(u);
     }
 
-    public int delete(UUID id) { return repo.delete(id); }
+    public void delete(UUID id) { repo.deleteById(id); }
 
     public boolean verifyPassword(User u, String plain) {
         return u != null && BCrypt.checkpw(plain, u.getHashedPassword());
