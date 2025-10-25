@@ -3,6 +3,7 @@ package com.rgq.edabank.model;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -26,6 +27,7 @@ public class Alert {
     private Integer kafkaPartition;
     @Column(name = "kafka_offset")
     private Long kafkaOffset;
+    @CreationTimestamp
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 

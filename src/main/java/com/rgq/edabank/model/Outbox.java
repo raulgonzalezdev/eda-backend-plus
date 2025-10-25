@@ -3,6 +3,7 @@ package com.rgq.edabank.model;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -20,7 +21,9 @@ public class Outbox {
     private String type;
     @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
+    @Column(name = "sent", columnDefinition = "boolean default false")
     private Boolean sent;
+    @CreationTimestamp
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 

@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -22,6 +23,7 @@ public class Transfer {
     private String toAccount;
     @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
+    @CreationTimestamp
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 

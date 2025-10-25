@@ -7,7 +7,8 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     streams:
-      application-id: ${KAFKA_STREAMS_APP_ID}
+      application-id: ${KAFKA_STREAMS_APP_ID:eda-alerts-app}
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
       replication-factor: 1
       properties:
         processing.guarantee: exactly_once_v2

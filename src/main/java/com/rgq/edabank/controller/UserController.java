@@ -26,64 +26,84 @@ public class UserController {
 
     @GetMapping("/users")
     public ResponseEntity<List<UserDto>> list() {
-        var users = userService.findAll();
-        List<UserDto> out = users.stream().map(this::convertToDto).collect(Collectors.toList());
-        return ResponseEntity.ok(out);
+        List<UserDto> users = userService.findAll().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(users);
     }
 
     @GetMapping("/users/{id}")
     public ResponseEntity<UserDto> get(@PathVariable UUID id) {
-        Optional<User> u = userService.findById(id);
-        return u.map(user -> ResponseEntity.ok(convertToDto(user))).orElseGet(() -> ResponseEntity.notFound().build());
+        Optional<User> user = userService.findById(id);
+        return user.map(u -> ResponseEntity.ok(convertToDto(u)))
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/users")
     public ResponseEntity<?> create(@RequestBody UserDto body) {
-        String email = body.getEmail();
-        String password = body.getPassword();
-        if (email == null || password == null) return ResponseEntity.badRequest().body("email and password required");
-        User u = new User();
-        u.setEmail(email);
-        u.setFirstName(body.getFirstName());
-        u.setLastName(body.getLastName());
-        u.setRole(body.getRole() != null ? body.getRole() : "PATIENT");
-        // check uniqueness
-        if (userService.findByEmail(email).isPresent()) {
-            return ResponseEntity.status(409).body("email already exists");
+        try {
+            User user = new User();
+            user.setEmail(body.getEmail());
+            user.setFirstName(body.getFirstName());
+            user.setLastName(body.getLastName());
+            user.setRole(body.getRole());
+            
+            User created = userService.create(user, body.getPassword());
+            return ResponseEntity.ok(convertToDto(created));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error creating user: " + e.getMessage());
         }
-        User savedUser = userService.create(u, password);
-        return ResponseEntity.ok(convertToDto(savedUser));
     }
 
     @PutMapping("/users/{id}")
     public ResponseEntity<?> update(@PathVariable UUID id, @RequestBody UserDto body) {
-        Optional<User> ou = userService.findById(id);
-        if (ou.isEmpty()) return ResponseEntity.notFound().build();
-        User u = ou.get();
-        u.setEmail(body.getEmail() != null ? body.getEmail() : u.getEmail());
-        u.setFirstName(body.getFirstName() != null ? body.getFirstName() : u.getFirstName());
-        u.setLastName(body.getLastName() != null ? body.getLastName() : u.getLastName());
-        u.setRole(body.getRole() != null ? body.getRole() : u.getRole());
-        String newPass = body.getPassword();
-        User savedUser = userService.update(u, newPass);
-        return ResponseEntity.ok(convertToDto(savedUser));
+        try {
+            Optional<User> existingUser = userService.findById(id);
+            if (existingUser.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            User user = existingUser.get();
+            user.setEmail(body.getEmail());
+            user.setFirstName(body.getFirstName());
+            user.setLastName(body.getLastName());
+            user.setRole(body.getRole());
+            
+            User updated = userService.update(user, body.getPassword());
+            return ResponseEntity.ok(convertToDto(updated));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error updating user: " + e.getMessage());
+        }
     }
 
     @DeleteMapping("/users/{id}")
     public ResponseEntity<?> delete(@PathVariable UUID id) {
-        userService.delete(id);
-        return ResponseEntity.noContent().build();
+        try {
+            userService.delete(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error deleting user: " + e.getMessage());
+        }
     }
 
     @PostMapping("/auth/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> body) throws Exception {
         String email = body.get("email");
         String password = body.get("password");
-        if (email == null || password == null) return ResponseEntity.badRequest().body("email and password required");
-        var ou = userService.findByEmail(email);
-        if (ou.isEmpty()) return ResponseEntity.status(401).body("invalid credentials");
-        var user = ou.get();
-        if (!userService.verifyPassword(user, password)) return ResponseEntity.status(401).body("invalid credentials");
+        if (email == null || password == null) {
+            return ResponseEntity.badRequest().body("email and password required");
+        }
+        
+        Optional<User> ou = userService.findByEmail(email);
+        if (ou.isEmpty()) {
+            return ResponseEntity.status(401).body("invalid credentials");
+        }
+        
+        User user = ou.get();
+        if (!userService.verifyPassword(user, password)) {
+            return ResponseEntity.status(401).body("invalid credentials");
+        }
+        
         String token = jwtService.createToken(user.getEmail(), "user");
         return ResponseEntity.ok(Map.of("token", token));
     }
