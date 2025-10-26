@@ -21,6 +21,17 @@ RUN mkdir -p /etc/patroni /var/log/postgresql && \
 COPY patroni-config/patroni.yml /etc/patroni/patroni.yml
 RUN chown postgres:postgres /etc/patroni/patroni.yml
 
+# Crear directorio para scripts de inicialización
+RUN mkdir -p /docker-entrypoint-initdb.d && \
+    chown postgres:postgres /docker-entrypoint-initdb.d
+
+# Copiar scripts de inicialización
+COPY scripts/init-patroni-database.sh /docker-entrypoint-initdb.d/init-patroni-database.sh
+COPY sql/create_pos_schema_and_tables.sql /docker-entrypoint-initdb.d/create_pos_schema_and_tables.sql
+RUN chmod +x /docker-entrypoint-initdb.d/init-patroni-database.sh && \
+    chown postgres:postgres /docker-entrypoint-initdb.d/init-patroni-database.sh && \
+    chown postgres:postgres /docker-entrypoint-initdb.d/create_pos_schema_and_tables.sql
+
 # Script de inicialización para configurar permisos
 RUN echo '#!/bin/bash\n\
 if [ ! -d "/var/lib/postgresql/data/base" ]; then\n\

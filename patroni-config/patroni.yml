@@ -61,6 +61,8 @@ bootstrap:
     - encoding: UTF8
     - data-checksums
 
+  post_bootstrap: /docker-entrypoint-initdb.d/init-patroni-database.sh
+
   pg_hba:
     - host replication replicator 0.0.0.0/0 md5
     - host all all 0.0.0.0/0 md5
