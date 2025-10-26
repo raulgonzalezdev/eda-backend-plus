@@ -5,3 +5,4 @@
 *.pid
 .DS_Store
 *.txt
+alert_test_log.txt
