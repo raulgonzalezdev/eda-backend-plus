@@ -24,6 +24,7 @@ services:
       - ./sql:/docker-entrypoint-initdb.d
     networks:
       - kafka-network
+    command: postgres -c wal_level=logical
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -97,11 +98,14 @@ services:
     command: >
       bash -c "
         echo 'Waiting for Kafka cluster to be ready...'
-        sleep 60
+        sleep 90
         echo 'Creating Kafka topics...'
         kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 1 || true
         kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 1 || true
         kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 1 || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_config --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_offsets --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_status --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
         echo 'Topics created successfully!'
         echo 'Listing all topics:'
         kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --list || true
@@ -132,12 +136,53 @@ services:
     networks:
       - kafka-network
 
-networks:
-  kafka-network:
-    driver: bridge
+  debezium:
+    image: debezium/connect:2.5
+    container_name: debezium
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+      - postgres
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: debezium_config
+      OFFSET_STORAGE_TOPIC: debezium_offsets
+      STATUS_STORAGE_TOPIC: debezium_status
+      CONNECT_LOG4J_ROOT_LOGLEVEL: DEBUG
+    networks:
+      - kafka-network
+    volumes:
+      - ./config:/config
+
+  debezium-connector-setup:
+    image: confluentinc/cp-kafkacat:latest
+    container_name: debezium-connector-setup
+    depends_on:
+      - debezium
+    networks:
+      - kafka-network
+    command: >
+      bash -c '
+        echo "Waiting for Debezium Connect to start..."
+        while ! curl -s -f -o /dev/null http://debezium:8083/; do
+          echo "Debezium Connect is not ready yet, waiting..."
+          sleep 5
+        done
+        echo "Debezium Connect is ready, registering connector..."
+        curl -X POST -H "Content-Type: application/json" --data @/config/debezium-connector.json http://debezium:8083/connectors
+      '
+    volumes:
+      - ./config:/config
+    restart: "no"
 
 volumes:
   kafka_data_1: {}
   kafka_data_2: {}
   kafka_data_3: {}
   postgres_data: {}
+
+networks:
+  kafka-network:
+    driver: bridge

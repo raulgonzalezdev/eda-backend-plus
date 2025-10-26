@@ -1,0 +1,15 @@
+{
+  "name": "outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.user": "sas_user",
+    "database.password": "ML!gsx90l02",
+    "database.dbname": "sasdatqbox",
+    "database.server.name": "postgres",
+    "table.include.list": "pos.outbox",
+    "topic.prefix": "dbz-outbox",
+    "plugin.name": "pgoutput"
+  }
+}

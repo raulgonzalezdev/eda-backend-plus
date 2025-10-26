@@ -22,7 +22,7 @@ public class AuthController {
   @GetMapping("/auth/token")
   public ResponseEntity<?> token(@RequestParam(name = "sub", defaultValue = "demo-user") String sub,
                                  @RequestParam(name = "scope", defaultValue = "alerts.read") String scope) throws Exception {
-    JWSSigner signer = new MACSigner(jwtSecret.getBytes());
+    // removed unused signer variable
     Instant now = Instant.now();
     JWTClaimsSet claims = new JWTClaimsSet.Builder()
         .subject(sub)
