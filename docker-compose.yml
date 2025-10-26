@@ -1,4 +1,23 @@
 services:
+  connect-setup:
+    image: confluentinc/cp-kafkacat:latest
+    depends_on:
+      - debezium
+    networks:
+      - kafka-network
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for Kafka Connect to start..."
+        while [ `curl -s -o /dev/null -w %{http_code} http://debezium:8083/connectors` -ne 200 ]; do
+          echo "Kafka Connect is not ready yet, waiting..."
+          sleep 5
+        done
+        echo "Kafka Connect is ready, creating connector..."
+        curl -X POST -H "Content-Type: application/json" --data @/config/debezium-connector.json http://debezium:8083/connectors
+    volumes:
+      - ./config:/config
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: zookeeper

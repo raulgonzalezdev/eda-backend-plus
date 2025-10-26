@@ -2,7 +2,7 @@
   "name": "outbox-connector",
   "config": {
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-    "database.hostname": "postgres",
+    "database.hostname": "postgres-local",
     "database.port": "5432",
     "database.user": "sas_user",
     "database.password": "ML!gsx90l02",
