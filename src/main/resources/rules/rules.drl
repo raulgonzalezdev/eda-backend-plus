@@ -1,0 +1,13 @@
+package com.rgq.rules
+
+import com.rgq.events.PaymentEvent;
+import org.springframework.kafka.core.KafkaTemplate;
+
+global KafkaTemplate<String, String> kafkaTemplate;
+
+rule "High Amount Transaction"
+    when
+        $paymentEvent : PaymentEvent(amount > 1000)
+    then
+        kafkaTemplate.send("alerts.suspect", $paymentEvent.getId(), "High amount transaction detected: " + $paymentEvent.getId());
+end
