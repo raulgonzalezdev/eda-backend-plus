@@ -25,33 +25,73 @@ public class TopologyConfig {
   @Bean
   public KStream<String, String> kstream(StreamsBuilder streamsBuilder) {
     Serde<String> stringSerde = Serdes.String();
-    KStream<String, String> payments = streamsBuilder.stream("payments.events", Consumed.with(stringSerde, stringSerde));
-    KStream<String, String> transfers = streamsBuilder.stream("transfers.events", Consumed.with(stringSerde, stringSerde));
+    
+    // Procesar eventos del outbox de Debezium
+    KStream<String, String> outboxEvents = streamsBuilder.stream("dbz-outbox.pos.outbox", Consumed.with(stringSerde, stringSerde));
+    
+    KStream<String, String> processedEvents = outboxEvents.peek((k, v) -> log.debug("Debezium event key={} payload={}", k, v));
 
-    KStream<String, String> merged = payments.merge(transfers).peek((k, v) -> log.debug("evt key={} payload={}", k, v));
-
-    KStream<String, String> alerts = merged.filter((k, v) -> {
+    KStream<String, String> alerts = processedEvents.filter((k, v) -> {
       try {
-        JsonNode node = mapper.readTree(v);
-        double amount = node.has("amount") ? node.get("amount").asDouble(0.0) : 0.0;
+        // Parsear el evento de Debezium
+        JsonNode debeziumEvent = mapper.readTree(v);
+        
+        // Extraer el payload del evento
+        JsonNode payload = debeziumEvent.path("payload");
+        if (payload.isMissingNode()) {
+          log.warn("No payload found in Debezium event: {}", v);
+          return false;
+        }
+        
+        // Extraer el payload interno del outbox
+        JsonNode after = payload.path("after");
+        if (after.isMissingNode()) {
+          log.warn("No 'after' field found in Debezium payload: {}", v);
+          return false;
+        }
+        
+        String outboxPayload = after.path("payload").asText("");
+        if (outboxPayload.isEmpty()) {
+          log.warn("Empty outbox payload in event: {}", v);
+          return false;
+        }
+        
+        // Parsear el payload del evento original
+        JsonNode eventData = mapper.readTree(outboxPayload);
+        double amount = eventData.path("amount").asDouble(0.0);
+        
+        log.info("Processing event with amount: {} (threshold: {})", amount, threshold);
         return amount >= threshold;
+        
       } catch (Exception e) {
-        log.warn("Invalid JSON payload: {}", v);
+        log.warn("Error processing Debezium event: {} - {}", v, e.getMessage());
         return false;
       }
     }).mapValues(v -> {
       try {
-        JsonNode node = mapper.readTree(v);
-        String type = node.has("type") ? node.get("type").asText("unknown") : "unknown";
-        double amount = node.has("amount") ? node.get("amount").asDouble(0.0) : 0.0;
-        String id = node.has("id") ? node.get("id").asText("") : "";
-        return "{\"alert\":\"threshold_exceeded\",\"type\":\"" + type + "\",\"amount\":" + amount + ",\"id\":\"" + id + "\"}";
+        // Parsear el evento de Debezium
+        JsonNode debeziumEvent = mapper.readTree(v);
+        JsonNode after = debeziumEvent.path("payload").path("after");
+        String outboxPayload = after.path("payload").asText("");
+        
+        // Parsear el payload del evento original
+        JsonNode eventData = mapper.readTree(outboxPayload);
+        String type = eventData.path("type").asText("unknown");
+        double amount = eventData.path("amount").asDouble(0.0);
+        String id = eventData.path("id").asText("");
+        String aggregateId = after.path("aggregate_id").asText("");
+        
+        String alertPayload = "{\"alert\":\"threshold_exceeded\",\"type\":\"" + type + "\",\"amount\":" + amount + ",\"id\":\"" + id + "\",\"aggregate_id\":\"" + aggregateId + "\"}";
+        log.info("Generated alert: {}", alertPayload);
+        return alertPayload;
+        
       } catch (Exception e) {
-        return "{\"alert\":\"parse_error\"}";
+        log.error("Error generating alert from event: {} - {}", v, e.getMessage());
+        return "{\"alert\":\"parse_error\",\"error\":\"" + e.getMessage() + "\"}";
       }
     });
 
     alerts.to("alerts.suspect", Produced.with(stringSerde, stringSerde));
-    return merged;
+    return processedEvents;
   }
 }
