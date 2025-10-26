@@ -1,0 +1,1 @@
+INSERT INTO pos.outbox (aggregate_id, aggregate_type, type, payload, created_at) VALUES (gen_random_uuid(), 'test_aggregate', 'test_event', '{"test": "payload"}', NOW());
