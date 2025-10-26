@@ -16,14 +16,17 @@ spring:
         in: dbz-outbox.pos.outbox
         out: alerts.suspect
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    url: jdbc:postgresql://postgres-local:5432,postgres-backup:5432/${DB_NAME}?targetServerType=any&loadBalanceHosts=true&connectTimeout=5&socketTimeout=10
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
-      connection-timeout: 30000
+      connection-timeout: 5000
+      validation-timeout: 3000
+      leak-detection-threshold: 10000
+      connection-test-query: SELECT 1
 
 management:
   metrics:
@@ -32,6 +35,14 @@ management:
     web:
       exposure:
         include: health,info,metrics,prometheus
+  health:
+    db:
+      enabled: true
+    defaults:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always
 
 app:
   jwt:

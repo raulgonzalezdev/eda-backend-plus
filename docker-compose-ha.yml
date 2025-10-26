@@ -1,0 +1,317 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Principal con configuración mejorada
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: postgres-local
+    environment:
+      POSTGRES_DB: sasdatqbox
+      POSTGRES_USER: sas_user
+      POSTGRES_PASSWORD: ML!gsx90l02
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    networks:
+      - kafka-network
+    command: postgres -c wal_level=logical -c max_connections=200 -c shared_buffers=256MB
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sas_user -d sasdatqbox"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL Backup (Réplica para backup y failover manual)
+  postgres-backup:
+    image: pgvector/pgvector:pg15
+    container_name: postgres-backup
+    environment:
+      POSTGRES_DB: sasdatqbox
+      POSTGRES_USER: sas_user
+      POSTGRES_PASSWORD: ML!gsx90l02
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_backup_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    networks:
+      - kafka-network
+    command: postgres -c wal_level=logical -c max_connections=200
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sas_user -d sasdatqbox"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - kafka-network
+
+  # Kafka Brokers
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - kafka-network
+
+  kafka2:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka2
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    volumes:
+      - kafka2_data:/var/lib/kafka/data
+    networks:
+      - kafka-network
+
+  kafka3:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka3
+    depends_on:
+      - zookeeper
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    volumes:
+      - kafka3_data:/var/lib/kafka/data
+    networks:
+      - kafka-network
+
+  # Kafka Init
+  kafka-init:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - kafka
+      - kafka2
+      - kafka3
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      echo -e 'Creating kafka topics'
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic pos-events --replication-factor 3 --partitions 3
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic inventory-events --replication-factor 3 --partitions 3
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic sales-events --replication-factor 3 --partitions 3
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka:9092 --list
+      "
+    networks:
+      - kafka-network
+
+  # NGINX Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-lb
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - app1
+      - app2
+      - app3
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Aplicaciones Backend
+  app1:
+    build: .
+    container_name: eda-backend-app1
+    depends_on:
+      - kafka
+      - kafka2
+      - kafka3
+      - postgres
+    env_file:
+      - .env
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
+      - JWT_SECRET=${JWT_SECRET}
+      - ALERT_THRESHOLD=10000
+      - DB_HOST=postgres-local
+      - DB_PORT=5432
+      - DB_NAME=sasdatqbox
+      - DB_USER=sas_user
+      - DB_PASSWORD=ML!gsx90l02
+      - INSTANCE_ID=app1
+    ports:
+      - "8081:8080"
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  app2:
+    build: .
+    container_name: eda-backend-app2
+    depends_on:
+      - kafka
+      - kafka2
+      - kafka3
+      - postgres
+    env_file:
+      - .env
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
+      - JWT_SECRET=${JWT_SECRET}
+      - ALERT_THRESHOLD=10000
+      - DB_HOST=postgres-local
+      - DB_PORT=5432
+      - DB_NAME=sasdatqbox
+      - DB_USER=sas_user
+      - DB_PASSWORD=ML!gsx90l02
+      - INSTANCE_ID=app2
+    ports:
+      - "8082:8080"
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  app3:
+    build: .
+    container_name: eda-backend-app3
+    depends_on:
+      - kafka
+      - kafka2
+      - kafka3
+      - postgres
+    env_file:
+      - .env
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
+      - JWT_SECRET=${JWT_SECRET}
+      - ALERT_THRESHOLD=10000
+      - DB_HOST=postgres-local
+      - DB_PORT=5432
+      - DB_NAME=sasdatqbox
+      - DB_USER=sas_user
+      - DB_PASSWORD=ML!gsx90l02
+      - INSTANCE_ID=app3
+    ports:
+      - "8083:8080"
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Debezium
+  debezium:
+    image: debezium/connect:2.4
+    container_name: debezium
+    depends_on:
+      - kafka
+      - kafka2
+      - kafka3
+      - postgres
+    ports:
+      - "8084:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092,kafka2:9093,kafka3:9094
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: debezium_configs
+      OFFSET_STORAGE_TOPIC: debezium_offsets
+      STATUS_STORAGE_TOPIC: debezium_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      STATUS_STORAGE_REPLICATION_FACTOR: 3
+    networks:
+      - kafka-network
+
+  # Debezium Connector Setup
+  debezium-connector-setup:
+    image: curlimages/curl:latest
+    depends_on:
+      - debezium
+    command: >
+       sh -c "
+         sleep 30 &&
+         curl -X POST http://debezium:8083/connectors -H 'Content-Type: application/json' -d '{
+           \"name\": \"postgres-connector\",
+           \"config\": {
+             \"connector.class\": \"io.debezium.connector.postgresql.PostgreSqlConnector\",
+             \"database.hostname\": \"postgres\",
+             \"database.port\": \"5432\",
+             \"database.user\": \"sas_user\",
+             \"database.password\": \"ML!gsx90l02\",
+             \"database.dbname\": \"sasdatqbox\",
+             \"database.server.name\": \"postgres\",
+             \"table.include.list\": \"public.pos_transactions,public.inventory_items,public.sales_summary\",
+             \"plugin.name\": \"pgoutput\"
+           }
+         }'
+       "
+    networks:
+      - kafka-network
+
+volumes:
+  postgres_data:
+  postgres_backup_data:
+  zookeeper_data:
+  kafka_data:
+  kafka2_data:
+  kafka3_data:
+
+networks:
+  kafka-network:
+    driver: bridge
