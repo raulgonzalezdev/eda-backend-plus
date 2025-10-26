@@ -234,17 +234,20 @@ services:
     build: .
     container_name: eda-backend-app1-patroni
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy-patroni:5000/sasdatqbox
-      - SPRING_DATASOURCE_USERNAME=sas_user
-      - SPRING_DATASOURCE_PASSWORD=ML!gsx90l02
-      - POSTGRES_HOST=haproxy-patroni
-      - POSTGRES_PORT=5000
-      - SERVER_PORT=8080
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=ZmFrZS1jb21wbGV4LXNlY3JldC1zaG91bGQtYmUtYXRsZWFzdC1sZW5nZXI=
+      - ALERT_THRESHOLD=10000
+      - DB_HOST=haproxy-patroni
+      - DB_PORT=5000
+      - DB_NAME=sasdatqbox
+      - DB_USER=sas_user
+      - DB_PASSWORD=ML!gsx90l02
+      - INSTANCE_ID=app1-patroni
     ports:
       - "9084:8080"  # Puerto diferente para app1-patroni
     networks:
       - patroni-network
+      - kafka-network
     depends_on:
       - haproxy
     healthcheck:
@@ -257,17 +260,20 @@ services:
     build: .
     container_name: eda-backend-app2-patroni
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy-patroni:5000/sasdatqbox
-      - SPRING_DATASOURCE_USERNAME=sas_user
-      - SPRING_DATASOURCE_PASSWORD=ML!gsx90l02
-      - POSTGRES_HOST=haproxy-patroni
-      - POSTGRES_PORT=5000
-      - SERVER_PORT=8080
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=ZmFrZS1jb21wbGV4LXNlY3JldC1zaG91bGQtYmUtYXRsZWFzdC1sZW5nZXI=
+      - ALERT_THRESHOLD=10000
+      - DB_HOST=haproxy-patroni
+      - DB_PORT=5000
+      - DB_NAME=sasdatqbox
+      - DB_USER=sas_user
+      - DB_PASSWORD=ML!gsx90l02
+      - INSTANCE_ID=app2-patroni
     ports:
       - "9085:8080"  # Puerto diferente para app2-patroni
     networks:
       - patroni-network
+      - kafka-network
     depends_on:
       - haproxy
     healthcheck:
@@ -280,17 +286,20 @@ services:
     build: .
     container_name: eda-backend-app3-patroni
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy-patroni:5000/sasdatqbox
-      - SPRING_DATASOURCE_USERNAME=sas_user
-      - SPRING_DATASOURCE_PASSWORD=ML!gsx90l02
-      - POSTGRES_HOST=haproxy-patroni
-      - POSTGRES_PORT=5000
-      - SERVER_PORT=8080
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=ZmFrZS1jb21wbGV4LXNlY3JldC1zaG91bGQtYmUtYXRsZWFzdC1sZW5nZXI=
+      - ALERT_THRESHOLD=10000
+      - DB_HOST=haproxy-patroni
+      - DB_PORT=5000
+      - DB_NAME=sasdatqbox
+      - DB_USER=sas_user
+      - DB_PASSWORD=ML!gsx90l02
+      - INSTANCE_ID=app3-patroni
     ports:
       - "9086:8080"  # Puerto diferente para app3-patroni
     networks:
       - patroni-network
+      - kafka-network
     depends_on:
       - haproxy
     healthcheck:
@@ -310,3 +319,6 @@ volumes:
 networks:
   patroni-network:
     driver: bridge
+  kafka-network:
+    external: true
+    name: eda-backend-plus_kafka-network

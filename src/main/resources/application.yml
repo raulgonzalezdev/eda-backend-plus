@@ -16,7 +16,7 @@ spring:
         in: dbz-outbox.pos.outbox
         out: alerts.suspect
   datasource:
-    url: jdbc:postgresql://postgres-local:5432,postgres-backup:5432/${DB_NAME}?targetServerType=any&loadBalanceHosts=true&connectTimeout=5&socketTimeout=10
+    url: jdbc:postgresql://${DB_HOST:postgres-local}:${DB_PORT:5432}/${DB_NAME}?connectTimeout=5&socketTimeout=10
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
