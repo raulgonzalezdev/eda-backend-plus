@@ -1,5 +1,86 @@
 # 🛡️ Análisis de Resiliencia de Base de Datos - EDA Backend
 
+## ⚠️ **PROBLEMA CRÍTICO IDENTIFICADO: Sincronización de Datos**
+
+### 🔍 **Análisis del Problema**
+
+Aunque hemos implementado exitosamente el **failover automático** entre `postgres-local` y `postgres-backup`, existe un **problema crítico de sincronización de datos**:
+
+#### **Escenario Problemático:**
+1. **Estado Normal**: Las aplicaciones usan `postgres-local` (base primaria)
+2. **Falla**: `postgres-local` se cae → Las aplicaciones cambian automáticamente a `postgres-backup`
+3. **Durante Failover**: Los datos se escriben en `postgres-backup`
+4. **Recuperación**: `postgres-local` vuelve → Las aplicaciones regresan a `postgres-local`
+5. **PROBLEMA**: Los datos escritos durante el failover en `postgres-backup` **NO se sincronizan** con `postgres-local`
+
+#### **Consecuencias:**
+- ❌ **Pérdida de datos** escritos durante el failover
+- ❌ **Inconsistencia** entre bases de datos
+- ❌ **Datos huérfanos** en `postgres-backup`
+- ❌ **Violación de integridad** del sistema
+
+### 🎯 **Soluciones Propuestas**
+
+#### ❌ **Opción 1: Replicación Master-Slave con PostgreSQL Streaming**
+```yaml
+# Configuración de replicación automática
+postgres-master:
+  command: postgres -c wal_level=replica -c max_wal_senders=3 -c wal_keep_segments=64
+  
+postgres-slave:
+  command: postgres -c hot_standby=on
+  volumes:
+    - recovery.conf:/var/lib/postgresql/data/recovery.conf
+```
+- **Problema**: Los datos escritos en `postgres-backup` durante failover se pierden
+
+#### ❌ **Opción 2: Sincronización Bidireccional con Scripts**
+- Script de sincronización automática
+- Detección de cambios con timestamps
+- Merge inteligente de datos
+- **Problema**: Complejidad alta, posibles conflictos de datos
+
+#### 🏆 **Opción 3: Cluster PostgreSQL con Patroni + etcd (RECOMENDADA)**
+- ✅ Alta disponibilidad real
+- ✅ Failover automático con sincronización
+- ✅ Gestión automática de réplicas
+- ✅ Prevención de split-brain
+- ✅ Una sola fuente de verdad
+- ✅ Escalabilidad con múltiples réplicas
+
+#### ⚠️ **Opción 4: Uso de PostgreSQL Logical Replication - IMPLEMENTADA**
+- Replicación a nivel lógico
+- Sincronización selectiva de tablas
+- Menor overhead que streaming replication
+- **Problemas identificados**:
+  - 🚫 Conflictos en escrituras simultáneas
+  - 🔄 Complejidad de resolución de conflictos
+  - 📊 Overhead de sincronización bidireccional
+  - 🚨 Riesgo de split-brain
+
+## 📊 **Comparación de Eficiencia**
+
+| Aspecto | Replicación Bidireccional | Patroni + etcd |
+|---------|---------------------------|----------------|
+| **Complejidad** | Alta | Media |
+| **Conflictos de datos** | Posibles | Imposibles |
+| **Failover automático** | Manual/Complejo | Automático |
+| **Split-brain** | Riesgo alto | Prevención garantizada |
+| **Rendimiento** | Overhead bidireccional | Óptimo (una dirección) |
+| **Escalabilidad** | Limitada | Múltiples réplicas |
+| **Integridad** | Riesgo | Garantizada |
+
+### 🚨 **Estado Actual del Sistema**
+- ✅ **Failover Automático**: Implementado y funcionando
+- ❌ **Sincronización de Datos**: **NO IMPLEMENTADA**
+- ⚠️ **Riesgo**: Alto riesgo de pérdida de datos en producción
+
+### 📋 **Próximos Pasos Recomendados**
+1. Implementar replicación Master-Slave
+2. Configurar sincronización automática
+3. Probar escenarios de failover con datos
+4. Validar integridad de datos post-recuperación
+
 ## 📊 Situación Actual - Puntos Críticos Identificados
 
 ### ❌ **PROBLEMA PRINCIPAL: Single Point of Failure (SPOF)**

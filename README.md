@@ -37,6 +37,25 @@ docker-compose up --build
 
 La aplicación estará disponible en `http://localhost:8080`.
 
+### Cluster de Alta Disponibilidad con Patroni
+
+Para entornos de producción, el proyecto incluye un cluster PostgreSQL de alta disponibilidad usando Patroni + etcd:
+
+```bash
+# Levantar cluster Patroni (3 nodos PostgreSQL + etcd + HAProxy)
+docker-compose -f docker-compose-patroni.yml up -d --build
+
+# Probar failover automático
+.\scripts\test-patroni-failover-simple.ps1
+```
+
+**Puertos del Cluster:**
+- **HAProxy**: 5000 (escritura), 5001 (lectura), 7000 (stats)
+- **PostgreSQL**: 5432 (master), 5433-5434 (replicas)
+- **Aplicaciones**: 9084-9086 (3 instancias con balanceador)
+
+Ver documentación completa en [`docs/database-resilience.md`](docs/database-resilience.md).
+
 #### Flujo de Desarrollo con Docker
 
 Para un ciclo de desarrollo más rápido, puedes dejar los servicios de infraestructura (Kafka, Zookeeper) corriendo y solo reconstruir tu aplicación:

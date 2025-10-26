@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Principal con configuración mejorada
+  # PostgreSQL Principal con configuración de replicación
   postgres:
     image: pgvector/pgvector:pg15
     container_name: postgres-local
@@ -14,9 +14,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./sql:/docker-entrypoint-initdb.d
+      - ./scripts:/docker-entrypoint-scripts.d
     networks:
       - kafka-network
-    command: postgres -c wal_level=logical -c max_connections=200 -c shared_buffers=256MB
+    command: postgres -c wal_level=logical -c max_connections=200 -c shared_buffers=256MB -c max_wal_senders=10 -c max_replication_slots=10 -c hot_standby=on -c wal_sender_timeout=60s -c max_logical_replication_workers=10
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sas_user -d sasdatqbox"]
@@ -24,7 +25,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # PostgreSQL Backup (Réplica para backup y failover manual)
+  # PostgreSQL Backup con configuración de replicación bidireccional
   postgres-backup:
     image: pgvector/pgvector:pg15
     container_name: postgres-backup
@@ -37,15 +38,18 @@ services:
     volumes:
       - postgres_backup_data:/var/lib/postgresql/data
       - ./sql:/docker-entrypoint-initdb.d
+      - ./scripts:/docker-entrypoint-scripts.d
     networks:
       - kafka-network
-    command: postgres -c wal_level=logical -c max_connections=200
+    command: postgres -c wal_level=logical -c max_connections=200 -c shared_buffers=256MB -c max_wal_senders=10 -c max_replication_slots=10 -c hot_standby=on -c wal_sender_timeout=60s -c max_logical_replication_workers=10
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sas_user -d sasdatqbox"]
       interval: 30s
       timeout: 5s
       retries: 3
+    depends_on:
+      - postgres
 
   # Zookeeper
   zookeeper:
