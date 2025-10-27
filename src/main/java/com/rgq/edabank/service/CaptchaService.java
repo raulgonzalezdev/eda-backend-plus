@@ -1,7 +1,10 @@
 package com.rgq.edabank.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Random;
@@ -24,6 +27,8 @@ public class CaptchaService {
     }
 
     private final ConcurrentHashMap<String, Challenge> store = new ConcurrentHashMap<>();
+    @Autowired(required = false)
+    private StringRedisTemplate redis;
     private final Random random = new Random();
     private final long ttlSeconds = 120; // 2 minutos
 
@@ -39,7 +44,20 @@ public class CaptchaService {
         c.question = String.format("¿Cuánto es %d %s %d?", a, symbol, b);
         c.answer = result;
         c.expiresAt = Instant.now().plusSeconds(ttlSeconds);
-        store.put(token, c);
+        // Intentar almacenar en Redis si está disponible
+        try {
+            if (redis != null) {
+                String key = "captcha:challenge:" + token;
+                redis.opsForHash().put(key, "q", c.question);
+                redis.opsForHash().put(key, "a", String.valueOf(result));
+                redis.expire(key, Duration.ofSeconds(ttlSeconds));
+            } else {
+                store.put(token, c);
+            }
+        } catch (Exception e) {
+            // Fallback a memoria si Redis falla
+            store.put(token, c);
+        }
 
         CaptchaChallenge out = new CaptchaChallenge();
         out.token = token;
@@ -50,6 +68,23 @@ public class CaptchaService {
 
     public boolean validate(String token, String answerRaw) {
         if (token == null || answerRaw == null) return false;
+        // Intentar validar vía Redis si está disponible
+        try {
+            if (redis != null) {
+                String key = "captcha:challenge:" + token;
+                Object a = redis.opsForHash().get(key, "a");
+                if (a == null) return false; // expirado o inexistente
+                int expected = Integer.parseInt(a.toString());
+                int ans = Integer.parseInt(answerRaw.trim());
+                boolean ok = (ans == expected);
+                if (ok) {
+                    redis.delete(key); // un solo uso
+                }
+                return ok;
+            }
+        } catch (Exception ignored) { /* fallback abajo */ }
+
+        // Fallback a memoria
         Challenge c = store.get(token);
         if (c == null) return false;
         if (Instant.now().isAfter(c.expiresAt)) {

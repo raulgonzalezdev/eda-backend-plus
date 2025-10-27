@@ -108,7 +108,7 @@ public class UserController {
     }
 
     @PostMapping("/auth/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> body, javax.servlet.http.HttpServletRequest request) throws Exception {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body, jakarta.servlet.http.HttpServletRequest request) throws Exception {
         // Rate limiting por IP
         String ip = request.getHeader("X-Forwarded-For");
         if (ip != null && ip.contains(",")) ip = ip.split(",")[0].trim();

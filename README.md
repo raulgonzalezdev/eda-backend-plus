@@ -80,6 +80,18 @@ Para un ciclo de desarrollo más rápido, puedes dejar los servicios de infraest
 - `POST /auth/login`: Inicia sesión. Requiere `email`, `password`, `captchaToken` y `captchaAnswer` válidos.
 - `POST /auth/register`: Registro público de usuario. Requiere `email`, `password`, opcional `firstName`, `lastName`. Devuelve un JWT temporal (15 min) junto con los datos básicos del usuario.
 
+### Redis (opcional)
+- El sistema puede usar Redis para reforzar seguridad sin romper compatibilidad:
+  - CAPTCHA: almacenamiento de retos con TTL de 2 minutos.
+  - Rate limiting de login: contador con TTL de 1 minuto (máx. 5 intentos).
+- Si Redis no está disponible, hay fallback a memoria local (comportamiento actual).
+- Variables de entorno soportadas:
+  - `REDIS_HOST` (por defecto `localhost`)
+  - `REDIS_PORT` (por defecto `6379`)
+  - `REDIS_PASSWORD` (opcional)
+- Configuración en `application.yml` bajo `spring.data.redis.*`.
+- Para desarrollo rápido: `docker run -p 6379:6379 redis:7-alpine`.
+
 ### General
 - `GET /api/hello`: Comprobación rápida del servicio.
 - `GET /api/health`: Estado del servicio.
