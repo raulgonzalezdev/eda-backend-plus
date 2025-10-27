@@ -1,6 +1,7 @@
 Param(
     [Parameter(Mandatory = $true)][string]$Description,
     [string]$Dir = "src/main/resources/db/migration",
+    [string]$Schema = "pos",
     [switch]$OpenFile
 )
 
@@ -15,7 +16,8 @@ function Get-NextVersion([string]$MigrationDir) {
         if ($f.BaseName -match '^V(\d+)__') { $versions += [int]$Matches[1] }
     }
     if ($versions.Count -eq 0) { return 1 }
-    return ([int]([array]::Max($versions)) + 1)
+    $max = ($versions | Measure-Object -Maximum).Maximum
+    return ($max + 1)
 }
 
 function To-Slug([string]$Text) {
@@ -39,16 +41,18 @@ $filePath = Join-Path $migrationDir $fileName
 if (Test-Path -Path $filePath) {
     Write-Host "El archivo ya existe: $filePath" -ForegroundColor Yellow
 } else {
-    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'
-    $header = @(
+$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'
+$header = @(
         "-- Migration: $fileName",
         "-- Description: $Description",
         "-- Created: $timestamp",
-        "-- Schema: pos",
+        "-- Schema: $Schema",
+        "-- Nota: Flyway ejecuta cada migración en una transacción (no uses BEGIN/COMMIT aquí)",
+        "SET LOCAL search_path TO $Schema;",
         "",
         "-- Añade tus sentencias SQL debajo. Ejemplos:",
-        "-- CREATE TABLE pos.mi_tabla (...);",
-        "-- CREATE INDEX IF NOT EXISTS idx_mi_tabla_col ON pos.mi_tabla(col);",
+        "-- CREATE TABLE $Schema.mi_tabla (...);",
+        "-- CREATE INDEX IF NOT EXISTS idx_mi_tabla_col ON $Schema.mi_tabla(col);",
         ""
     ) -join [Environment]::NewLine
 

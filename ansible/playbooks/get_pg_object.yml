@@ -1,0 +1,161 @@
+---
+- name: Extraer DDL de objeto PostgreSQL
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    # Parámetros esperados (pueden venir de --extra-vars)
+    db_host: "127.0.0.1"
+    db_port: 5432
+    db_name: "sasdatqbox"
+    db_user: "sas_user"
+    db_password: ""
+    schema: "pos"
+    object: ""
+    type: ""           # TABLES | VIEWS | FUNCTIONS | PROCEDURES
+    current_path: "{{ lookup('env','PWD') }}"
+    use_docker: true
+    docker_network: ""
+    db_container_name: ""   # Si se define, se usa docker exec en ese contenedor
+
+    out_dir: "{{ current_path }}/db/{{ schema }}/{{ type }}/{{ object }}"
+
+  tasks:
+    - name: Crear directorio de salida
+      ansible.builtin.file:
+        path: "{{ out_dir }}"
+        state: directory
+
+    - name: Ajustar host para uso con Docker
+      ansible.builtin.set_fact:
+        effective_db_host: >-
+          {{
+            (db_container_name|length > 0 and use_docker)
+              | ternary('localhost',
+                (db_host in ['127.0.0.1','localhost'] and use_docker)
+                  | ternary('host.docker.internal', db_host)
+              )
+          }}
+
+    - name: Construir opciones de conexión
+      ansible.builtin.set_fact:
+        conn_opts: "-h {{ effective_db_host }} -p {{ db_port }} -U {{ db_user }} -d {{ db_name }}"
+
+    - name: Construir prefijos de ejecución psql
+      ansible.builtin.set_fact:
+        psql_exec_prefix: >-
+          {% if use_docker and db_container_name|length > 0 %}
+          docker exec {{ db_container_name }} sh -lc 'PGPASSWORD="{{ db_password }}" psql {{ conn_opts }} -At -c $$
+          {% elif use_docker %}
+          docker run --rm {% if docker_network|length > 0 %} --network {{ docker_network }} {% endif %} postgres:16-alpine sh -lc 'PGPASSWORD="{{ db_password }}" psql {{ conn_opts }} -At -c $$
+          {% else %}
+          psql {{ conn_opts }} -At -c $$
+          {% endif %}
+        psql_exec_suffix: $$'
+
+    - name: Volcar DDL de TABLA con psql
+      when: type == 'TABLES'
+      ansible.builtin.shell: >-
+        {{ psql_exec_prefix }}
+        WITH cols AS (
+          SELECT '  '||quote_ident(c.column_name)||' '||format_type(a.atttypid,a.atttypmod)
+                 || CASE WHEN c.is_identity='YES' THEN ' GENERATED '||c.identity_generation||' AS IDENTITY' ELSE '' END
+                 || CASE WHEN c.is_nullable='NO' THEN ' NOT NULL' ELSE '' END
+                 || CASE WHEN c.column_default IS NOT NULL AND c.is_identity<>'YES' THEN ' DEFAULT '||c.column_default ELSE '' END
+                 || CASE WHEN row_number() OVER (ORDER BY c.ordinal_position) < (SELECT count(*) FROM information_schema.columns WHERE table_schema='{{ schema }}' AND table_name='{{ object }}') THEN ',' ELSE '' END AS coldef
+          FROM information_schema.columns c
+          JOIN pg_attribute a ON a.attrelid = '"{{ schema }}"."{{ object }}"'::regclass AND a.attname=c.column_name
+          WHERE c.table_schema='{{ schema }}' AND c.table_name='{{ object }}'
+          ORDER BY c.ordinal_position
+        )
+        SELECT 'CREATE TABLE '||quote_ident('{{ schema }}')||'.'||quote_ident('{{ object }}')||E' (\n'
+               || string_agg(coldef, E'\n') || E'\n);'
+        FROM cols;
+        {{ psql_exec_suffix }}
+      register: ddl_table
+
+    - name: Volcar constraints de TABLA con psql
+      when: type == 'TABLES'
+      ansible.builtin.shell: >-
+        {{ psql_exec_prefix }}
+        SELECT 'ALTER TABLE '||quote_ident(n.nspname)||'.'||quote_ident(c.relname)||' ADD CONSTRAINT '
+               ||quote_ident(ct.conname)||' '||pg_get_constraintdef(ct.oid)||';'
+        FROM pg_constraint ct
+        JOIN pg_class c ON c.oid=ct.conrelid
+        JOIN pg_namespace n ON n.oid=c.relnamespace
+        WHERE n.nspname='{{ schema }}' AND c.relname='{{ object }}' AND ct.contype IN ('p','u','f')
+        ORDER BY ct.conindid;
+        {{ psql_exec_suffix }}
+      register: ddl_constraints
+
+    - name: Volcar índices de TABLA con psql
+      when: type == 'TABLES'
+      ansible.builtin.shell: >-
+        {{ psql_exec_prefix }}
+        SELECT indexdef||';' FROM pg_indexes WHERE schemaname='{{ schema }}' AND tablename='{{ object }}' ORDER BY indexname;
+        {{ psql_exec_suffix }}
+      register: ddl_indexes
+
+    - name: Combinar DDL de tabla
+      when: type == 'TABLES'
+      ansible.builtin.set_fact:
+        ddl_combined: |-
+          {{ ddl_table.stdout }}
+          {{ ddl_constraints.stdout }}
+          {{ ddl_indexes.stdout }}
+
+    - name: Volcar DDL de VISTA con psql
+      when: type == 'VIEWS'
+      ansible.builtin.shell: >-
+        {{ psql_exec_prefix }}
+        SELECT 'CREATE OR REPLACE VIEW '
+               ||quote_ident('{{ schema }}')||'.'||quote_ident('{{ object }}')
+               ||' AS '
+               ||pg_get_viewdef('"{{ schema }}"."{{ object }}"'::regclass, true)
+               ||';';
+        {{ psql_exec_suffix }}
+      register: ddl
+
+    - name: Volcar DDL de FUNCIÓN(ES) con psql
+      when: type == 'FUNCTIONS'
+      ansible.builtin.shell: >-
+        {{ psql_exec_prefix }}
+        SELECT pg_get_functiondef(p.oid)
+        FROM pg_proc p
+        JOIN pg_namespace n ON p.pronamespace=n.oid
+        WHERE n.nspname='{{ schema }}' AND p.prokind='f' AND p.proname='{{ object }}'
+        ORDER BY p.oid;
+        {{ psql_exec_suffix }}
+      register: ddl
+
+    - name: Volcar DDL de PROCEDIMIENTO(S) con psql
+      when: type == 'PROCEDURES'
+      ansible.builtin.shell: >-
+        {{ psql_exec_prefix }}
+        SELECT pg_get_functiondef(p.oid)
+        FROM pg_proc p
+        JOIN pg_namespace n ON p.pronamespace=n.oid
+        WHERE n.nspname='{{ schema }}' AND p.prokind='p' AND p.proname='{{ object }}'
+        ORDER BY p.oid;
+        {{ psql_exec_suffix }}
+      register: ddl
+
+    - name: Fallar si no se obtuvo DDL
+      when: >-
+        {{
+          (type == 'TABLES')
+            | ternary((ddl_combined | default('')) | trim | length == 0,
+                     (ddl.stdout | default('')) | trim | length == 0)
+        }}
+      ansible.builtin.fail:
+        msg: "No se encontró DDL para {{ schema }}.{{ object }} ({{ type }})"
+
+    - name: Escribir fichero de salida
+      ansible.builtin.copy:
+        dest: "{{ out_dir }}/{{ object }}.sql"
+        mode: '0644'
+        content: |
+          -- Source: {{ effective_db_host }}:{{ db_port }}/{{ db_name }}
+          -- Type: {{ type }} | Schema: {{ schema }} | Object: {{ object }}
+          SET LOCAL search_path TO {{ schema }};
+          {{ (type == 'TABLES') | ternary(ddl_combined, ddl.stdout) }}

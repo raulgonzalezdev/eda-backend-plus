@@ -1,0 +1,22 @@
+---
+# Copia este archivo a ansible/vars/dev.yml y ajusta tus credenciales.
+
+description: "sync_dev_to_containers"
+schema: "pos"
+
+# Origen (desarrollo)
+src_host: "127.0.0.1"
+src_port: 5432
+src_db: "sasdatqbox"
+src_user: "sas_user"
+src_password: "REEMPLAZA_AQUI"
+
+# Destino (contenedores)
+dst_host: "patroni-master"
+dst_port: 5432
+dst_db: "sasdatqbox"
+dst_user: "sas_user"
+dst_password: ""
+
+# Red de docker donde están tus servicios (opcional)
+docker_network: ""

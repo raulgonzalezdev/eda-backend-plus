@@ -1,8 +1,5 @@
 /.env
-/.env.local
 /target/
 *.log
 *.pid
 .DS_Store
-*.txt
-alert_test_log.txt

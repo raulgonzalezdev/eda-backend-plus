@@ -1,0 +1,28 @@
+---
+- hosts: xper-hanades02
+  become: true
+  tasks:
+    - name: Collect current  timestamp
+      shell: date '+%Y%m%d%H%M%S'
+      register: timestamp
+    - name: set base_path
+      set_fact:
+        base_path: /tmp/{{ timestamp.stdout }}
+    - name: Create base path in tmp
+      file:
+        dest: "{{ base_path }}"
+        state: directory
+        group: sapsys
+        mode: 0770
+    - name: Exporting object
+      #shell: hdbsql -n xper-hanades02:30015 -u B1DEVUSER -p 12629iYk "EXPORT {{ schema }}.{{ object }} INTO '{{ base_path }}' WITH NO DEPENDENCIES CATALOG ONLY;"
+      shell: hdbsql -n xper-hanades02:30015 -u B1DEVUSER -p 12629iYk "EXPORT {{ schema }}.{{ object }} INTO '{{ base_path }}' WITH NO DEPENDENCIES CATALOG ONLY;"
+    - name: Downloading exported object folder
+      synchronize:
+        src: "{{ base_path }}/"
+        dest: "{{ current_path }}/db/{{ schema }}/{{ type }}/{{ object }}/"
+        mode: pull
+    - name: Delete export folder in tmp
+      file:
+        dest: "{{ base_path }}"
+        state: absent

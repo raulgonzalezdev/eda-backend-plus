@@ -1,30 +1,14 @@
 package com.rgq.edabank.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
-@Entity
-@Table(name = "payments", schema = "pos")
 public class Payment {
-    @Id
     private String id;
     private String type;
     private double amount;
-    @Column(name = "currency")
     private String currency;
-    @Column(name = "account_id")
     private String accountId;
-    @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
-    @CreationTimestamp
-    @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
     public String getId() { return id; }

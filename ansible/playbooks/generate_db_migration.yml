@@ -1,0 +1,125 @@
+---
+# Genera una migración Flyway por diferencia entre BD de desarrollo (origen)
+# y BD de contenedores (destino) usando Liquibase vía Maven en contenedor.
+
+- name: Generate Flyway migration from DB→DB diff
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    description: "sync_dev_to_containers"
+    schema: "pos"
+    repo_root: "{{ lookup('env','PWD') }}"
+    liquibase_dir: "{{ repo_root }}/target/liquibase"
+    change_log: "{{ liquibase_dir }}/diff-db.yml"
+    sql_file: "{{ liquibase_dir }}/diff-db.sql"
+    migrations_dir: "{{ repo_root }}/src/main/resources/db/migration"
+
+    # Conexión origen (desarrollo)
+    src_host: "127.0.0.1"
+    src_port: 5432
+    src_db: "sasdatqbox"
+    src_user: "sas_user"
+    src_password: ""
+
+    # Conexión destino (contenedores/HA)
+    dst_host: "patroni-master"
+    dst_port: 5432
+    dst_db: "sasdatqbox"
+    dst_user: "sas_user"
+    dst_password: ""
+
+    docker_network: ""
+
+  tasks:
+    - name: Ensure Liquibase work directory exists
+      ansible.builtin.file:
+        path: "{{ liquibase_dir }}"
+        state: directory
+
+    - name: Build JDBC URLs
+      ansible.builtin.set_fact:
+        src_jdbc: "jdbc:postgresql://{{ src_host }}:{{ src_port }}/{{ src_db }}"
+        dst_jdbc: "jdbc:postgresql://{{ dst_host }}:{{ dst_port }}/{{ dst_db }}"
+
+    - name: Run Liquibase diffChangeLog (DB→DB)
+      ansible.builtin.command: >-
+        docker run --rm
+        -v {{ repo_root }}:/workspace -w /workspace
+        {% if docker_network|length > 0 %} --network {{ docker_network }} {% endif %}
+        maven:3-eclipse-temurin-17
+        mvn -q -DskipTests liquibase:diffChangeLog
+        -Dliquibase.referenceUrl="{{ src_jdbc }}"
+        -Dliquibase.referenceUsername="{{ src_user }}"
+        -Dliquibase.referencePassword="{{ src_password }}"
+        -Dliquibase.url="{{ dst_jdbc }}"
+        -Dliquibase.username="{{ dst_user }}"
+        -Dliquibase.password="{{ dst_password }}"
+        -Dliquibase.defaultSchemaName="{{ schema }}"
+        -Dliquibase.referenceDefaultSchemaName="{{ schema }}"
+        -Dliquibase.schemas="{{ schema }}"
+        -Dliquibase.changeLogFile="{{ change_log }}"
+
+    - name: Render SQL from changelog
+      ansible.builtin.command: >-
+        docker run --rm
+        -v {{ repo_root }}:/workspace -w /workspace
+        {% if docker_network|length > 0 %} --network {{ docker_network }} {% endif %}
+        maven:3-eclipse-temurin-17
+        mvn -q -DskipTests liquibase:updateSQL
+        -Dliquibase.changeLogFile="{{ change_log }}"
+        -Dliquibase.outputFile="{{ sql_file }}"
+        -Dliquibase.defaultSchemaName="{{ schema }}"
+
+    - name: Check generated SQL exists
+      ansible.builtin.stat:
+        path: "{{ sql_file }}"
+      register: sql_stat
+
+    - name: Fail if SQL not generated
+      ansible.builtin.fail:
+        msg: "No se generó SQL ({{ sql_file }}). Verifica conectividad/credenciales."
+      when: not sql_stat.stat.exists or sql_stat.stat.size | int == 0
+
+    - name: Read generated SQL
+      ansible.builtin.slurp:
+        path: "{{ sql_file }}"
+      register: sql_raw
+
+    - name: Find existing migrations
+      ansible.builtin.find:
+        paths: "{{ migrations_dir }}"
+        patterns: "V*__*.sql"
+      register: migrations
+
+    - name: Compute next migration version
+      ansible.builtin.set_fact:
+        versions: "{{ migrations.files | map(attribute='path') | map('basename') | map('regex_search','^V(\\d+)__','\\1') | map('int') | list }}"
+        next_version: "{{ (versions | default([0]) | max) + 1 }}"
+
+    - name: Slugify description
+      ansible.builtin.set_fact:
+        slug: "{{ description | lower | regex_replace('[^a-z0-9]+','_') | regex_replace('_+','_') | trim('_') }}"
+
+    - name: Build migration path
+      ansible.builtin.set_fact:
+        migration_filename: "V{{ next_version }}__{{ slug }}.sql"
+        migration_path: "{{ migrations_dir }}/{{ migration_filename }}"
+
+    - name: Create migration file with header and SQL
+      ansible.builtin.copy:
+        dest: "{{ migration_path }}"
+        content: |
+          -- Migration: {{ migration_filename }}
+          -- Description: {{ description }}
+          -- Created: {{ '%Y-%m-%d %H:%M:%S %z' | strftime }}
+          -- Schema: {{ schema }}
+          -- Nota: Flyway ejecuta cada migración en una transacción (no uses BEGIN/COMMIT aquí)
+          SET LOCAL search_path TO {{ schema }};
+
+          {{ sql_raw.content | b64decode }}
+        mode: '0644'
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "Creada migración {{ migration_path }}"

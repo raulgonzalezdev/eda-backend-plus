@@ -3,7 +3,6 @@ package com.rgq.edabank.outbox;
 import com.rgq.edabank.model.Outbox;
 import com.rgq.edabank.repository.OutboxRepository;
 import io.micrometer.core.instrument.MeterRegistry;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -25,7 +24,7 @@ public class OutboxPublisher {
 
     @Scheduled(fixedDelayString = "${outbox.poll.ms:5000}")
     public void poll() {
-        List<Outbox> list = outboxRepo.findBySentFalseOrderByCreatedAtAsc(PageRequest.of(0, 50));
+        List<Outbox> list = outboxRepo.fetchUnsent(50);
         for (Outbox o : list) {
             try {
                 kafka.send(o.getType(), o.getAggregateId(), o.getPayload()).get();

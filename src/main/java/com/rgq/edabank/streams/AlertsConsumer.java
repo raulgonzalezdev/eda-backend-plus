@@ -48,7 +48,7 @@ public class AlertsConsumer {
             System.out.println("Objeto Alert creado con payload: " + a.getPayload());
             System.out.println("Enviando a repositorio para inserción...");
             
-            alertsRepo.save(a);
+            alertsRepo.insertAlert(a);
             System.out.println("=== PROCESAMIENTO DE MENSAJE COMPLETADO ====");
         } catch (Exception e) {
             // log detallado del error

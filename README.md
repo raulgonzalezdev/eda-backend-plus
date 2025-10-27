@@ -139,3 +139,61 @@ Para autoescalar la aplicación basado en el lag de mensajes de Kafka, puedes us
     ```bash
     kubectl apply -f k8s/keda-scaledobject.yaml
     ```
+## Dry-run de migraciones (simulación segura)
+
+Puedes previsualizar qué migraciones se crearían/actualizarían sin escribir archivos usando el modo dry-run. Esto es útil para revisar los cambios que se aplicarían en producción cuando trabajas con la política `update_existing`.
+
+- Variables clave:
+  - `MIG_DEDUP_POLICY`: `update_existing` | `skip_if_exists` | `create_new_version` (recomendado: `update_existing`)
+  - `DRY_RUN`: `1` para activar la simulación, `0` (o sin definir) para escritura normal
+  - `PROD_DB_CONTAINER_NAME`: nombre del contenedor Postgres de producción (por ejemplo `patroni-master`)
+
+- Ejemplos de ejecución:
+  - Windows PowerShell:
+    - Dry-run completo (export dev/prod + agregadas + diffs, sin escribir archivos):
+      ```powershell
+      $env:MIG_DEDUP_POLICY = 'update_existing'
+      $env:DRY_RUN = '1'
+      $env:PROD_DB_CONTAINER_NAME = 'patroni-master'
+      bash scripts/build-migrations.sh
+      ```
+    - Solo diffs dev vs prod (sin escribir archivos):
+      ```powershell
+      $env:MIG_DEDUP_POLICY = 'update_existing'
+      $env:DRY_RUN = '1'
+      bash scripts/convert-pos-diff-to-flyway.sh
+      ```
+    - Ejecución normal (escribe/actualiza archivos con `update_existing`):
+      ```powershell
+      $env:MIG_DEDUP_POLICY = 'update_existing'
+      $env:DRY_RUN = '0'
+      $env:PROD_DB_CONTAINER_NAME = 'patroni-master'
+      bash scripts/build-migrations.sh
+      ```
+
+  - Git Bash / WSL / Linux:
+    - Dry-run completo:
+      ```bash
+      MIG_DEDUP_POLICY=update_existing DRY_RUN=1 PROD_DB_CONTAINER_NAME=patroni-master bash scripts/build-migrations.sh
+      ```
+    - Solo diffs:
+      ```bash
+      MIG_DEDUP_POLICY=update_existing DRY_RUN=1 bash scripts/convert-pos-diff-to-flyway.sh
+      ```
+
+- Qué muestra el dry-run:
+  - Para cada categoría (`create_<schema>_schema(_diff)`, `create_<schema>_tables(_diff)`, `add_<schema>_constraints(_diff)`, `create_<schema>_indexes(_diff)`, `create_<schema>_views(_diff)`, `create_<schema>_routines(_diff)`), se indica si:
+    - “sin cambios; reutilizaría …”
+    - “se actualizaría …” (con `update_existing`)
+    - “se crearía …” (primera vez o `create_new_version`)
+    - “se saltaría … (política=skip_if_exists)”
+  - En diffs, se imprime un resumen con cuentas:
+    - Tablas nuevas
+    - Columnas nuevas via `ALTER TABLE … ADD COLUMN …`
+    - Constraints nuevas
+    - Índices nuevos
+    - Vistas y rutinas a reemplazar
+
+- Notas:
+  - El dry-run no limpia archivos vacíos ni modifica migraciones; es 100% no destructivo.
+  - Para cambios complejos (renombres, tipos), crea migraciones manuales seguras; el diff automatiza altas de columnas, índices y constraints.
