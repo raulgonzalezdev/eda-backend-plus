@@ -182,6 +182,29 @@ services:
       - etcd2
       - etcd3
 
+  # ===== DB BOOTSTRAP (IDEMPOTENTE) =====
+  db-bootstrap:
+    image: postgres:15
+    container_name: db-bootstrap
+    depends_on:
+      - patroni-master
+      - haproxy
+    environment:
+      PGHOST: haproxy
+      PGPORT: 5000
+      PGUSER: postgres
+      PG_SUPER_PASS: postgres_super_pass
+      APP_DB_NAME: ${DB_NAME}
+      APP_DB_USER: ${DB_USER}
+      APP_DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./sql:/sql:ro
+      - ./scripts:/scripts:ro
+    networks:
+      - kafka-network
+    command: ["bash","-lc","/scripts/bootstrap-db.sh"]
+    restart: "no"
+
   # ===== HAPROXY PARA POSTGRESQL HA =====
   haproxy:
     image: haproxy:2.8

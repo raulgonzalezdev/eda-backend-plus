@@ -1,0 +1,39 @@
+-- Idempotent grants and Debezium publication for schema pos
+-- Nota: ajusta el usuario si no es 'sas_user'
+
+-- Asegurar propietario del esquema (si existe)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name='pos') THEN
+    EXECUTE 'ALTER SCHEMA pos OWNER TO sas_user';
+  END IF;
+END$$;
+
+-- Grants de esquema y tablas/seqs existentes
+GRANT USAGE ON SCHEMA pos TO sas_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA pos TO sas_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA pos TO sas_user;
+
+-- Default privileges para objetos futuros en el esquema pos
+ALTER DEFAULT PRIVILEGES IN SCHEMA pos GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO sas_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA pos GRANT USAGE, SELECT ON SEQUENCES TO sas_user;
+
+-- Asegurar outbox.sent con default false y NOT NULL; y corregir nulos existentes
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='pos' AND table_name='outbox' AND column_name='sent') THEN
+    -- Corregir datos existentes primero
+    EXECUTE 'UPDATE pos.outbox SET sent=false WHERE sent IS NULL';
+    -- Forzar default y not null
+    EXECUTE 'ALTER TABLE IF EXISTS pos.outbox ALTER COLUMN sent SET DEFAULT false';
+    EXECUTE 'ALTER TABLE IF EXISTS pos.outbox ALTER COLUMN sent SET NOT NULL';
+  END IF;
+END$$;
+
+-- Publicación para Debezium (con pgoutput)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'dbz_outbox_pub') THEN
+    EXECUTE 'CREATE PUBLICATION dbz_outbox_pub FOR TABLE pos.outbox';
+  END IF;
+END$$;

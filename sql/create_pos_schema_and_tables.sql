@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS pos.outbox (
   aggregate_id VARCHAR(100),
   type VARCHAR(200),        -- kafka topic
   payload JSONB,
-  sent BOOLEAN DEFAULT false,
+  sent BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 

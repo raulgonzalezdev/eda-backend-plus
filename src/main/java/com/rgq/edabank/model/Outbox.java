@@ -21,8 +21,8 @@ public class Outbox {
     private String type;
     @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
-    @Column(name = "sent", columnDefinition = "boolean default false")
-    private Boolean sent;
+    @Column(name = "sent", nullable = false)
+    private boolean sent = false;
     @CreationTimestamp
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
@@ -38,8 +38,8 @@ public class Outbox {
     
     public String getPayload() { return payload; }
     public void setPayload(String payload) { this.payload = payload; }
-    public Boolean getSent() { return sent; }
-    public void setSent(Boolean sent) { this.sent = sent; }
+    public boolean getSent() { return sent; }
+    public void setSent(boolean sent) { this.sent = sent; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 }
