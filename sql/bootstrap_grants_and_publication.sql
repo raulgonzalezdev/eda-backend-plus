@@ -11,12 +11,55 @@ END$$;
 
 -- Grants de esquema y tablas/seqs existentes
 GRANT USAGE ON SCHEMA pos TO sas_user;
+GRANT CREATE ON SCHEMA pos TO sas_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA pos TO sas_user;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA pos TO sas_user;
 
 -- Default privileges para objetos futuros en el esquema pos
 ALTER DEFAULT PRIVILEGES IN SCHEMA pos GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO sas_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA pos GRANT USAGE, SELECT ON SEQUENCES TO sas_user;
+
+-- Corregir propietario de tablas existentes a sas_user (idempotente)
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN (
+    SELECT quote_ident(n.nspname) AS nsp, quote_ident(c.relname) AS rel
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'pos' AND c.relkind IN ('r','p')
+  ) LOOP
+    EXECUTE format('ALTER TABLE %s.%s OWNER TO %I', r.nsp, r.rel, 'sas_user');
+  END LOOP;
+END$$;
+
+-- Corregir propietario de secuencias existentes a sas_user (idempotente)
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN (
+    SELECT quote_ident(n.nspname) AS nsp, quote_ident(c.relname) AS rel
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'pos' AND c.relkind = 'S'
+  ) LOOP
+    EXECUTE format('ALTER SEQUENCE %s.%s OWNER TO %I', r.nsp, r.rel, 'sas_user');
+  END LOOP;
+END$$;
+
+-- Corregir propietario de índices existentes a sas_user (idempotente)
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN (
+    SELECT quote_ident(n.nspname) AS nsp, quote_ident(c.relname) AS rel
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'pos' AND c.relkind = 'I'
+  ) LOOP
+    EXECUTE format('ALTER INDEX %s.%s OWNER TO %I', r.nsp, r.rel, 'sas_user');
+  END LOOP;
+END$$;
 
 -- Asegurar outbox.sent con default false y NOT NULL; y corregir nulos existentes
 DO $$
