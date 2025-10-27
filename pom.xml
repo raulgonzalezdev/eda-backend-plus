@@ -108,6 +108,26 @@
           <target>${java.version}</target>
         </configuration>
       </plugin>
+      <!-- Liquibase plugin (sin atarlo al ciclo de build) para generar SQL offline desde JPA -->
+      <plugin>
+        <groupId>org.liquibase</groupId>
+        <artifactId>liquibase-maven-plugin</artifactId>
+        <version>4.27.0</version>
+        <dependencies>
+          <!-- Extensión Hibernate 6 para diff con entidades JPA -->
+          <dependency>
+            <groupId>org.liquibase.ext</groupId>
+            <artifactId>liquibase-hibernate6</artifactId>
+            <version>4.27.0</version>
+          </dependency>
+          <!-- Driver JDBC de PostgreSQL para conexiones del plugin -->
+          <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.6.0</version>
+          </dependency>
+        </dependencies>
+      </plugin>
     </plugins>
   </build>
 </project>
