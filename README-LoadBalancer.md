@@ -213,6 +213,25 @@ curl http://localhost:8083/api/health
 - ✅ **Logs**: Cada instancia mantiene logs independientes para debugging
 - ✅ **Environment**: Cada instancia tiene un `INSTANCE_ID` único para identificación
 
+### Persistencia de NGINX (DNS dinámico)
+Desde ahora la configuración de NGINX incluye resolución dinámica de DNS para los upstreams dentro de Docker. Esto evita tener que reiniciar NGINX cuando se recrean `app1/app2/app3`:
+
+```nginx
+http {
+  resolver 127.0.0.11 ipv6=off valid=30s;
+  resolver_timeout 5s;
+
+  upstream eda_backend {
+    least_conn;
+    server app1:8080 resolve max_fails=3 fail_timeout=30s weight=1;
+    server app2:8080 resolve max_fails=3 fail_timeout=30s weight=1;
+    server app3:8080 resolve max_fails=3 fail_timeout=30s weight=1;
+  }
+}
+```
+
+Además, el endpoint `/api/health` añade el header `X-Upstream-Server` para diagnosticar qué instancia respondió.
+
 ## 🎯 Beneficios Implementados
 
 1. **Alta Disponibilidad**: Si una instancia falla, las otras continúan funcionando

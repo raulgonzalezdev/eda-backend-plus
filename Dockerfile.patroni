@@ -43,6 +43,20 @@ exec patroni /etc/patroni/patroni.yml' > /usr/local/bin/start-patroni.sh && \
     chmod +x /usr/local/bin/start-patroni.sh && \
     chown postgres:postgres /usr/local/bin/start-patroni.sh
 
+# Wrapper para ejecutar el post_bootstrap con bash (evita problemas de CRLF/EOF)
+RUN echo '#!/bin/bash\n\
+set -e\n\
+# Normalizar finales de línea por si los archivos vienen con CRLF desde Windows\n\
+if command -v sed >/dev/null 2>&1; then\n\
+  sed -i '"'"'s/\\r$//'"'"' /docker-entrypoint-initdb.d/init-patroni-database.sh || true\n\
+  sed -i '"'"'s/\\r$//'"'"' /docker-entrypoint-initdb.d/create_pos_schema_and_tables.sql || true\n\
+fi\n\
+# Ejecutar el script y no impedir el bootstrap aunque falle\n\
+/bin/bash /docker-entrypoint-initdb.d/init-patroni-database.sh "$@" || true\n\
+exit 0\n' > /usr/local/bin/run-post-bootstrap.sh && \
+    chmod +x /usr/local/bin/run-post-bootstrap.sh && \
+    chown postgres:postgres /usr/local/bin/run-post-bootstrap.sh
+
 # Cambiar al usuario postgres
 USER postgres
 

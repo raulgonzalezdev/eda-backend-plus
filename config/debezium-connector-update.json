@@ -1,0 +1,13 @@
+{
+  "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+  "database.hostname": "patroni-master",
+  "database.port": "5432",
+  "database.user": "sas_user",
+  "database.password": "ML!gsx90l02",
+  "database.dbname": "sasdatqbox",
+  "plugin.name": "pgoutput",
+  "table.include.list": "pos.outbox",
+  "topic.prefix": "dbz-outbox",
+  "publication.autocreate.mode": "disabled",
+  "publication.name": "dbz_outbox_pub"
+}

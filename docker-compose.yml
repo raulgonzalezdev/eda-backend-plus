@@ -73,7 +73,8 @@ services:
       PATRONI_NAMESPACE: /db/
       PATRONI_SCOPE: postgres-cluster
       PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
-      PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data
+      # Usar subdirectorio para evitar EBUSY al renombrar el punto de montaje
+      PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data/pgdata
       PATRONI_POSTGRESQL_PGPASS: /tmp/pgpass
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: patroni-master:5432
@@ -89,7 +90,7 @@ services:
     volumes:
       - patroni_master_data:/var/lib/postgresql/data
       - ./patroni-config:/etc/patroni
-      - ./sql:/docker-entrypoint-initdb.d
+      - ./sql/create_pos_schema_and_tables.sql:/docker-entrypoint-initdb.d/create_pos_schema_and_tables.sql
       - ./scripts/init-patroni-database.sh:/docker-entrypoint-initdb.d/init-patroni-database.sh
     networks:
       - kafka-network
@@ -114,7 +115,8 @@ services:
       PATRONI_NAMESPACE: /db/
       PATRONI_SCOPE: postgres-cluster
       PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
-      PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data
+      # Usar subdirectorio para evitar EBUSY al renombrar el punto de montaje
+      PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data/pgdata
       PATRONI_POSTGRESQL_PGPASS: /tmp/pgpass
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: patroni-replica1:5432
@@ -153,7 +155,8 @@ services:
       PATRONI_NAMESPACE: /db/
       PATRONI_SCOPE: postgres-cluster
       PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
-      PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data
+      # Usar subdirectorio para evitar EBUSY al renombrar el punto de montaje
+      PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data/pgdata
       PATRONI_POSTGRESQL_PGPASS: /tmp/pgpass
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: patroni-replica2:5432
@@ -326,13 +329,20 @@ services:
       - kafka-network
     command: >
       bash -c '
-        echo "Waiting for Debezium Connect to start..."
+        echo "Waiting for Debezium Connect to start...";
         while ! curl -s -f -o /dev/null http://debezium:8083/; do
-          echo "Debezium Connect is not ready yet, waiting..."
-          sleep 5
-        done
-        echo "Debezium Connect is ready, registering connector..."
-        curl -X POST -H "Content-Type: application/json" --data @/config/debezium-connector.json http://debezium:8083/connectors
+          echo "Debezium Connect is not ready yet, waiting...";
+          sleep 5;
+        done;
+        echo "Debezium ready. Applying connector config (create or update)...";
+        if curl -s -f -o /dev/null http://debezium:8083/connectors/outbox-connector; then
+          echo "Connector exists, updating config...";
+          curl -s -X PUT -H "Content-Type: application/json" --data @/config/debezium-connector-update.json http://debezium:8083/connectors/outbox-connector/config;
+        else
+          echo "Connector not found, creating...";
+          curl -s -X POST -H "Content-Type: application/json" --data @/config/debezium-connector.json http://debezium:8083/connectors;
+        fi;
+        echo "Connector setup finished.";
       '
     volumes:
       - ./config:/config

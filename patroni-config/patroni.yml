@@ -36,7 +36,7 @@ bootstrap:
         max_parallel_workers: 8
         max_parallel_maintenance_workers: 4
         hot_standby: on
-        wal_level: replica
+        wal_level: logical
         max_wal_senders: 10
         max_replication_slots: 10
         wal_keep_size: 128MB
@@ -61,7 +61,7 @@ bootstrap:
     - encoding: UTF8
     - data-checksums
 
-  post_bootstrap: /docker-entrypoint-initdb.d/init-patroni-database.sh
+  post_bootstrap: /usr/local/bin/run-post-bootstrap.sh
 
   pg_hba:
     - host replication replicator 0.0.0.0/0 md5
@@ -89,7 +89,7 @@ bootstrap:
 postgresql:
   listen: 0.0.0.0:5432
   connect_address: ${PATRONI_NAME}:5432
-  data_dir: /var/lib/postgresql/data
+  data_dir: /var/lib/postgresql/data/pgdata
   bin_dir: /usr/lib/postgresql/15/bin
   pgpass: /tmp/pgpass
   authentication:

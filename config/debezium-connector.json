@@ -2,14 +2,16 @@
   "name": "outbox-connector",
   "config": {
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-    "database.hostname": "postgres-local",
+    "database.hostname": "patroni-master",
     "database.port": "5432",
     "database.user": "sas_user",
     "database.password": "ML!gsx90l02",
     "database.dbname": "sasdatqbox",
-    "database.server.name": "postgres",
+    "database.server.name": "dbz-outbox",
     "table.include.list": "pos.outbox",
     "topic.prefix": "dbz-outbox",
-    "plugin.name": "pgoutput"
+    "plugin.name": "pgoutput",
+    "publication.autocreate.mode": "disabled",
+    "publication.name": "dbz_outbox_pub"
   }
 }
