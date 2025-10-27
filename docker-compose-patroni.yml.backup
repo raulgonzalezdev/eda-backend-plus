@@ -66,6 +66,8 @@ services:
       dockerfile: Dockerfile.patroni
     container_name: patroni-master
     hostname: patroni-master
+    env_file:
+      - .env
     environment:
       PATRONI_NAME: patroni-master
       PATRONI_NAMESPACE: /db/
@@ -89,9 +91,9 @@ services:
       PATRONI_REPLICATION_PASSWORD: repl_pass_2024
       
       # Application database
-      POSTGRES_DB: sasdatqbox
-      POSTGRES_USER: sas_user
-      POSTGRES_PASSWORD: ML!gsx90l02
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       
       # Patroni REST API
       PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
@@ -117,6 +119,8 @@ services:
       dockerfile: Dockerfile.patroni
     container_name: patroni-replica1
     hostname: patroni-replica1
+    env_file:
+      - .env
     environment:
       PATRONI_NAME: patroni-replica1
       PATRONI_NAMESPACE: /db/
@@ -140,9 +144,9 @@ services:
       PATRONI_REPLICATION_PASSWORD: repl_pass_2024
       
       # Application database
-      POSTGRES_DB: sasdatqbox
-      POSTGRES_USER: sas_user
-      POSTGRES_PASSWORD: ML!gsx90l02
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       
       # Patroni REST API
       PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
@@ -168,6 +172,8 @@ services:
       dockerfile: Dockerfile.patroni
     container_name: patroni-replica2
     hostname: patroni-replica2
+    env_file:
+      - .env
     environment:
       PATRONI_NAME: patroni-replica2
       PATRONI_NAMESPACE: /db/
@@ -191,9 +197,9 @@ services:
       PATRONI_REPLICATION_PASSWORD: repl_pass_2024
       
       # Application database
-      POSTGRES_DB: sasdatqbox
-      POSTGRES_USER: sas_user
-      POSTGRES_PASSWORD: ML!gsx90l02
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       
       # Patroni REST API
       PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
@@ -233,15 +239,17 @@ services:
   app1-patroni:
     build: .
     container_name: eda-backend-app1-patroni
+    env_file:
+      - .env
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - JWT_SECRET=ZmFrZS1jb21wbGV4LXNlY3JldC1zaG91bGQtYmUtYXRsZWFzdC1sZW5nZXI=
+      - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
       - DB_HOST=haproxy-patroni
       - DB_PORT=5000
-      - DB_NAME=sasdatqbox
-      - DB_USER=sas_user
-      - DB_PASSWORD=ML!gsx90l02
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
       - INSTANCE_ID=app1-patroni
     ports:
       - "9084:8080"  # Puerto diferente para app1-patroni
@@ -259,15 +267,17 @@ services:
   app2-patroni:
     build: .
     container_name: eda-backend-app2-patroni
+    env_file:
+      - .env
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - JWT_SECRET=ZmFrZS1jb21wbGV4LXNlY3JldC1zaG91bGQtYmUtYXRsZWFzdC1sZW5nZXI=
+      - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
       - DB_HOST=haproxy-patroni
       - DB_PORT=5000
-      - DB_NAME=sasdatqbox
-      - DB_USER=sas_user
-      - DB_PASSWORD=ML!gsx90l02
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
       - INSTANCE_ID=app2-patroni
     ports:
       - "9085:8080"  # Puerto diferente para app2-patroni
@@ -285,15 +295,17 @@ services:
   app3-patroni:
     build: .
     container_name: eda-backend-app3-patroni
+    env_file:
+      - .env
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - JWT_SECRET=ZmFrZS1jb21wbGV4LXNlY3JldC1zaG91bGQtYmUtYXRsZWFzdC1sZW5nZXI=
+      - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
       - DB_HOST=haproxy-patroni
       - DB_PORT=5000
-      - DB_NAME=sasdatqbox
-      - DB_USER=sas_user
-      - DB_PASSWORD=ML!gsx90l02
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
       - INSTANCE_ID=app3-patroni
     ports:
       - "9086:8080"  # Puerto diferente para app3-patroni
