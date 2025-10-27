@@ -47,6 +47,7 @@ $paymentBody = @{
     id = [System.Guid]::NewGuid().ToString()
     userId = [System.Guid]::NewGuid().ToString()
     amount = 15000
+    type = "payment"
     timestamp = [System.DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 } | ConvertTo-Json
 
