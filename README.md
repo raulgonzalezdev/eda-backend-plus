@@ -76,6 +76,9 @@ Para un ciclo de desarrollo más rápido, puedes dejar los servicios de infraest
 
 ### Autenticación
 - `GET /auth/token?sub=<user>&scope=<scope>`: Genera un token JWT de prueba.
+- `GET /auth/captcha`: Devuelve un desafío anti-bot con `token`, `question` y `expiresIn`.
+- `POST /auth/login`: Inicia sesión. Requiere `email`, `password`, `captchaToken` y `captchaAnswer` válidos.
+- `POST /auth/register`: Registro público de usuario. Requiere `email`, `password`, opcional `firstName`, `lastName`. Devuelve un JWT temporal (15 min) junto con los datos básicos del usuario.
 
 ### General
 - `GET /api/hello`: Comprobación rápida del servicio.
@@ -85,7 +88,7 @@ Para un ciclo de desarrollo más rápido, puedes dejar los servicios de infraest
 ### Usuarios
 - `GET /users`: Lista todos los usuarios.
 - `GET /users/{id}`: Obtiene un usuario por su UUID.
-- `POST /users`: Crea un nuevo usuario.
+- `POST /users`: Crea un nuevo usuario (requiere autenticación; pensado para administración). Para auto-registro usar `POST /auth/register`.
 - `PUT /users/{id}`: Actualiza un usuario existente.
 
 ### Eventos
@@ -139,7 +142,26 @@ Para autoescalar la aplicación basado en el lag de mensajes de Kafka, puedes us
     ```bash
     kubectl apply -f k8s/keda-scaledobject.yaml
     ```
-## Dry-run de migraciones (simulación segura)
+## 4. Gestión de Migraciones de Base de Datos
+
+Este proyecto utiliza [Flyway](https://flywaydb.org/) para gestionar la evolución del esquema de la base de datos de forma automática y versionada.
+
+### Flujo de Trabajo
+
+El proceso de migración está diseñado para ser robusto y predecible, asegurando que los cambios en la base de datos de desarrollo se trasladen correctamente a producción.
+
+1.  **Generación de Migraciones (Desarrollo)**:
+    -   Para generar las migraciones, se utiliza el script `scripts/build-migrations.sh`.
+    -   Este script compara el esquema de la base de datos de desarrollo (definida en tu entorno local) con la base de datos de producción. Las credenciales de producción están directamente configuradas en el script para garantizar consistencia.
+    -   El resultado es un conjunto de archivos SQL de "diferencias" (ej. `V3__create_pos_tables_diff.sql`) que se guardan en `src/main/resources/db/migration`. Estos archivos contienen únicamente los cambios necesarios, como `CREATE TABLE` para tablas nuevas o `ALTER TABLE` para columnas nuevas.
+
+2.  **Aplicación de Migraciones (Despliegue)**:
+    -   Cuando se construye la imagen Docker de la aplicación, la carpeta `src/main/resources/db/migration` con todos los scripts de migración se incluye en la imagen.
+    -   Al iniciar el contenedor de la aplicación (por ejemplo, con `docker-compose up`), Flyway se ejecuta automáticamente al arrancar.
+    -   Flyway detecta y aplica cualquier migración pendiente (que no se haya ejecutado previamente) sobre la base de datos de destino (configurada a través de las variables de entorno en `docker-compose.yml`).
+    -   Esto garantiza que el esquema de la base de datos de producción siempre esté sincronizado con la versión del código que se está desplegando.
+
+### Simulación de Migraciones (Dry-run)
 
 Puedes previsualizar qué migraciones se crearían/actualizarían sin escribir archivos usando el modo dry-run. Esto es útil para revisar los cambios que se aplicarían en producción cuando trabajas con la política `update_existing`.
 
@@ -197,3 +219,39 @@ Puedes previsualizar qué migraciones se crearían/actualizarían sin escribir a
 - Notas:
   - El dry-run no limpia archivos vacíos ni modifica migraciones; es 100% no destructivo.
   - Para cambios complejos (renombres, tipos), crea migraciones manuales seguras; el diff automatiza altas de columnas, índices y constraints.
+
+## 5. API de Chat
+
+El backend incluye una funcionalidad de chat en tiempo real que utiliza WebSockets para la comunicación y Kafka para la distribución de mensajes. Los mensajes también se persisten en la base de datos.
+
+### Comunicación por WebSockets
+
+Para recibir mensajes en tiempo real, un cliente debe conectarse al siguiente endpoint de WebSockets:
+
+- **Endpoint**: `/ws`
+
+Una vez conectado, el cliente puede suscribirse al siguiente tema para recibir mensajes públicos:
+
+- **Tema**: `/topic/public`
+
+Para enviar un mensaje, el cliente debe enviar un mensaje al siguiente destino:
+
+- **Destino**: `/app/chat.sendMessage`
+
+El cuerpo del mensaje debe ser un objeto JSON con el siguiente formato:
+
+```json
+{
+  "content": "Hello, world!",
+  "sender": "user123",
+  "type": "CHAT"
+}
+```
+
+### Endpoints REST
+
+La API de chat también proporciona los siguientes endpoints REST para gestionar conversaciones y mensajes:
+
+- `GET /api/chat/conversations`: Obtiene una lista de todas las conversaciones.
+- `GET /api/chat/conversations/{id}`: Obtiene una conversación por su ID.
+- `GET /api/chat/conversations/{id}/messages`: Obtiene una lista de todos los mensajes de una conversación específica.

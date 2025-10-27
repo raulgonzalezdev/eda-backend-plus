@@ -170,13 +170,19 @@ routines_tmp="$(mktemp)"; : > "$routines_tmp"
 printf 'CREATE SCHEMA IF NOT EXISTS %s;\n' "$SCHEMA" >> "$schema_tmp"
 
 # Tablas: crear solo las que existen en dev y NO en prod
+# Si existe una migración base de tablas (create_<schema>_tables), evitamos duplicar CREATEs en *_diff
+base_tables_mig="$(find_existing_by_category "create_${SCHEMA}_tables")"
 for f in "$SRC_DEV"/TABLES/*/*.sql; do
   [ -f "$f" ] || continue
   base="$(basename "$f")"
   dir="$(basename "$(dirname "$f")")"
   f_pro="$SRC_PRO/TABLES/$dir/$base"
   if [ ! -f "$f_pro" ]; then
-    awk 'BEGIN{p=0} /^CREATE TABLE/{p=1} {if(p) print} /^\);/{if(p){print ""; p=0}}' "$f" >> "$tables_tmp"
+    # Copiar bloque CREATE TABLE y hacerlo idempotente con IF NOT EXISTS
+    awk 'BEGIN{p=0} 
+      /^CREATE[ \t]+TABLE/{p=1; sub(/^CREATE[ \t]+TABLE/, "CREATE TABLE IF NOT EXISTS"); print; next}
+      {if(p) print}
+      /^\);/{if(p){print ""; p=0}}' "$f" >> "$tables_tmp"
   fi
 done
 
@@ -201,7 +207,7 @@ for f in "$SRC_DEV"/TABLES/*/*.sql; do
     fi
     while IFS= read -r col; do
       [ -n "$col" ] || continue
-      def_line="$(grep -F -m1 "^$col|" "$dev_defs_set" | cut -d'|' -f2-)"
+      def_line="$(awk -F'|' -v col="$col" '$1==col{print substr($0, index($0, "|")+1); exit}' "$dev_defs_set")"
       [ -n "$def_line" ] || continue
       printf 'ALTER TABLE %s.%s ADD COLUMN %s;\n' "$SCHEMA" "$tname" "$def_line" >> "$tables_tmp"
     done < "$missing_cols"
@@ -245,6 +251,13 @@ fi
 set_diff "$dev_idx_set" "$pro_idx_set" >> "$indexes_tmp" || true
 rm -f "$dev_idx_set" "$pro_idx_set"
 
+# Reescribir índices para que sean idempotentes: CREATE [UNIQUE] INDEX IF NOT EXISTS
+if [ -s "$indexes_tmp" ]; then
+  tmp_idx="$(mktemp)"
+  sed -E 's/^CREATE[[:space:]]+UNIQUE[[:space:]]+INDEX/CREATE UNIQUE INDEX IF NOT EXISTS/; s/^CREATE[[:space:]]+INDEX/CREATE INDEX IF NOT EXISTS/' "$indexes_tmp" > "$tmp_idx"
+  mv "$tmp_idx" "$indexes_tmp"
+fi
+
 # Vistas: crear/actualizar si faltan o difieren
 if [ -d "$SRC_DEV/VIEWS" ]; then
   for f in "$SRC_DEV"/VIEWS/*/*.sql; do
@@ -287,7 +300,8 @@ for kind in FUNCTIONS PROCEDURES; do
 done
 
 # Escribir migraciones con categoría "_diff"
-write_migration "create_${SCHEMA}_schema_diff" "$schema_tmp"
+# No crear schema por diffs: siempre omitido
+
 write_migration "create_${SCHEMA}_tables_diff" "$tables_tmp"
 write_migration "add_${SCHEMA}_constraints_diff" "$constraints_tmp"
 write_migration "create_${SCHEMA}_indexes_diff" "$indexes_tmp"

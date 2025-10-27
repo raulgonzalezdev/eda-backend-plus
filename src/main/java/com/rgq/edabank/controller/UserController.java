@@ -2,6 +2,8 @@ package com.rgq.edabank.controller;
 
 import com.rgq.edabank.model.User;
 import com.rgq.edabank.service.JwtService;
+import com.rgq.edabank.service.CaptchaService;
+import com.rgq.edabank.service.LoginRateLimiter;
 import com.rgq.edabank.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +20,14 @@ public class UserController {
 
     private final UserService userService;
     private final JwtService jwtService;
+    private final CaptchaService captchaService;
+    private final LoginRateLimiter loginRateLimiter;
 
-    public UserController(UserService userService, JwtService jwtService) {
+    public UserController(UserService userService, JwtService jwtService, CaptchaService captchaService, LoginRateLimiter loginRateLimiter) {
         this.userService = userService;
         this.jwtService = jwtService;
+        this.captchaService = captchaService;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     @GetMapping("/users")
@@ -102,7 +108,25 @@ public class UserController {
     }
 
     @PostMapping("/auth/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> body) throws Exception {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body, javax.servlet.http.HttpServletRequest request) throws Exception {
+        // Rate limiting por IP
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && ip.contains(",")) ip = ip.split(",")[0].trim();
+        if (ip == null || ip.isBlank()) ip = request.getRemoteAddr();
+        if (!loginRateLimiter.tryAcquire(ip)) {
+            return ResponseEntity.status(429).body("too many attempts, try again later");
+        }
+
+        // Validación CAPTCHA
+        String captchaToken = body.get("captchaToken");
+        String captchaAnswer = body.get("captchaAnswer");
+        if (captchaToken == null || captchaAnswer == null) {
+            return ResponseEntity.badRequest().body("captcha required");
+        }
+        if (!captchaService.validate(captchaToken, captchaAnswer)) {
+            return ResponseEntity.status(401).body("invalid captcha");
+        }
+
         String email = body.get("email");
         String password = body.get("password");
         if (email == null || password == null) return ResponseEntity.badRequest().body("email and password required");
@@ -112,5 +136,48 @@ public class UserController {
         if (!userService.verifyPassword(user, password)) return ResponseEntity.status(401).body("invalid credentials");
         String token = jwtService.createToken(user.getEmail(), "user");
         return ResponseEntity.ok(Map.of("token", token));
+    }
+
+    @PostMapping("/auth/register")
+    public ResponseEntity<?> register(@RequestBody Map<String, Object> body) throws Exception {
+        String email = (String) body.get("email");
+        String password = (String) body.get("password");
+        if (email == null || password == null) {
+            return ResponseEntity.badRequest().body("email and password required");
+        }
+        if (userService.findByEmail(email).isPresent()) {
+            return ResponseEntity.status(409).body("email already exists");
+        }
+
+        User u = new User();
+        u.setEmail(email);
+        u.setFirstName((String) body.get("firstName"));
+        u.setLastName((String) body.get("lastName"));
+        u.setRole((String) body.getOrDefault("role", "PATIENT"));
+
+        userService.create(u, password);
+
+        long ttl = 900; // 15 minutos
+        String token = jwtService.createToken(u.getEmail(), "user", ttl);
+
+        return ResponseEntity.ok(Map.of(
+                "id", u.getId(),
+                "email", u.getEmail(),
+                "firstName", u.getFirstName(),
+                "lastName", u.getLastName(),
+                "role", u.getRole(),
+                "token", token,
+                "tokenTtl", ttl
+        ));
+    }
+
+    @GetMapping("/auth/captcha")
+    public ResponseEntity<?> captcha() {
+        var challenge = captchaService.generate();
+        return ResponseEntity.ok(Map.of(
+                "token", challenge.token,
+                "question", challenge.question,
+                "expiresIn", challenge.expiresInSeconds
+        ));
     }
 }

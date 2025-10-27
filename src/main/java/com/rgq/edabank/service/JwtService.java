@@ -36,4 +36,21 @@ public class JwtService {
         jwt.sign(signer);
         return jwt.serialize();
     }
+
+    public String createToken(String subject, String scope, long ttlSeconds) throws Exception {
+        JWSSigner signer = new MACSigner(jwtSecret.getBytes());
+        Instant now = Instant.now();
+        JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                .subject(subject)
+                .issuer("eda-backend")
+                .claim("scope", scope)
+                .jwtID(UUID.randomUUID().toString())
+                .issueTime(Date.from(now))
+                .expirationTime(Date.from(now.plusSeconds(ttlSeconds)))
+                .build();
+        JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.HS256).type(JOSEObjectType.JWT).build();
+        SignedJWT jwt = new SignedJWT(header, claims);
+        jwt.sign(signer);
+        return jwt.serialize();
+    }
 }

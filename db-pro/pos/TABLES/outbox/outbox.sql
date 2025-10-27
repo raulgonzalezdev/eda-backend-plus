@@ -1,6 +1,6 @@
 -- Source: jdbc:postgresql://127.0.0.1:5432/sasdatqbox
 -- Usuario: sas_user
--- Contenedor: patroni-master
+-- Contenedor: 8df645a2fa93
 SET LOCAL search_path TO pos;
 
 CREATE TABLE pos.outbox (

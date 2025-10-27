@@ -1,4 +1,4 @@
-CREATE TABLE pos.appointment_documents (
+CREATE TABLE IF NOT EXISTS pos.appointment_documents (
   id uuid NOT NULL,
   appointment_id uuid NOT NULL,
   document_type documenttype NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE pos.appointment_documents (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.appointments (
+CREATE TABLE IF NOT EXISTS pos.appointments (
   id uuid NOT NULL,
   doctor_id uuid NOT NULL,
   patient_id uuid NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE pos.appointments (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.business_locations (
+CREATE TABLE IF NOT EXISTS pos.business_locations (
   id uuid NOT NULL,
   business_id uuid NOT NULL,
   name character varying NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE pos.business_locations (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.businesses (
+CREATE TABLE IF NOT EXISTS pos.businesses (
   id uuid NOT NULL,
   name character varying NOT NULL,
   address character varying,
@@ -41,12 +41,12 @@ CREATE TABLE pos.businesses (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.conversation_participants (
+CREATE TABLE IF NOT EXISTS pos.conversation_participants (
   user_id uuid NOT NULL,
   conversation_id uuid NOT NULL
 );
 
-CREATE TABLE pos.conversations (
+CREATE TABLE IF NOT EXISTS pos.conversations (
   id uuid NOT NULL,
   appointment_id uuid,
   type conversationtype NOT NULL,
@@ -54,7 +54,7 @@ CREATE TABLE pos.conversations (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.customers (
+CREATE TABLE IF NOT EXISTS pos.customers (
   id uuid NOT NULL,
   first_name character varying NOT NULL,
   last_name character varying NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE pos.customers (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.inventory (
+CREATE TABLE IF NOT EXISTS pos.inventory (
   id uuid NOT NULL,
   product_id uuid NOT NULL,
   location_id uuid NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE pos.inventory (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.messages (
+CREATE TABLE IF NOT EXISTS pos.messages (
   id uuid NOT NULL,
   conversation_id uuid NOT NULL,
   sender_id uuid NOT NULL,
@@ -85,7 +85,7 @@ CREATE TABLE pos.messages (
   read_at timestamp with time zone
 );
 
-CREATE TABLE pos.patients (
+CREATE TABLE IF NOT EXISTS pos.patients (
   id uuid NOT NULL,
   user_id uuid NOT NULL,
   first_name character varying NOT NULL,
@@ -97,7 +97,7 @@ CREATE TABLE pos.patients (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.prices (
+CREATE TABLE IF NOT EXISTS pos.prices (
   id character varying NOT NULL,
   product_id character varying,
   active boolean,
@@ -113,7 +113,7 @@ CREATE TABLE pos.prices (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.products (
+CREATE TABLE IF NOT EXISTS pos.products (
   id uuid NOT NULL,
   name character varying NOT NULL,
   description character varying,
@@ -124,7 +124,7 @@ CREATE TABLE pos.products (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.stock_transfer_items (
+CREATE TABLE IF NOT EXISTS pos.stock_transfer_items (
   id uuid NOT NULL,
   transfer_id uuid NOT NULL,
   product_id uuid NOT NULL,
@@ -133,7 +133,7 @@ CREATE TABLE pos.stock_transfer_items (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.stock_transfers (
+CREATE TABLE IF NOT EXISTS pos.stock_transfers (
   id uuid NOT NULL,
   business_id uuid NOT NULL,
   from_location_id uuid NOT NULL,
@@ -144,7 +144,7 @@ CREATE TABLE pos.stock_transfers (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.subscription_products (
+CREATE TABLE IF NOT EXISTS pos.subscription_products (
   id character varying NOT NULL,
   active boolean,
   name character varying,
@@ -155,7 +155,7 @@ CREATE TABLE pos.subscription_products (
   updated_at timestamp with time zone
 );
 
-CREATE TABLE pos.subscriptions (
+CREATE TABLE IF NOT EXISTS pos.subscriptions (
   id character varying NOT NULL,
   user_id uuid NOT NULL,
   status subscriptionstatus,
@@ -174,3 +174,13 @@ CREATE TABLE pos.subscriptions (
   trial_end timestamp with time zone
 );
 
+ALTER TABLE pos.alerts ADD COLUMN kafka_topic character varying(128) DEFAULT 'alerts.suspect'::character varying;
+ALTER TABLE pos.alerts ADD COLUMN test character varying(10);
+ALTER TABLE pos.outbox ADD COLUMN event_type character varying(255);
+ALTER TABLE pos.users ADD COLUMN avatar_url character varying;
+ALTER TABLE pos.users ADD COLUMN billing_address json;
+ALTER TABLE pos.users ADD COLUMN is_active boolean;
+ALTER TABLE pos.users ADD COLUMN is_superuser boolean;
+ALTER TABLE pos.users ADD COLUMN payment_method json;
+ALTER TABLE pos.users ADD COLUMN phone character varying;
+ALTER TABLE pos.users ADD COLUMN updated_at timestamp with time zone;

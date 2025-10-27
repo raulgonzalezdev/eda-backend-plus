@@ -160,15 +160,18 @@ printf 'CREATE SCHEMA IF NOT EXISTS %s;\n' "$SCHEMA" > "$schema_tmp"
 : > "$views_tmp"
 : > "$routines_tmp"
 
-# Tablas: recoger CREATE TABLE, luego constraints y finalmente índices (filtrando *_pkey)
+# Tablas: recoger CREATE TABLE (idempotente), luego constraints y finalmente índices (filtrando *_pkey)
 for f in "$SRC_DIR"/TABLES/*/*.sql; do
   [ -f "$f" ] || continue
-  # CREATE TABLE block
-  awk 'BEGIN{p=0} /^CREATE TABLE/{p=1} {if(p) print} /^\);/{if(p){print ""; p=0}}' "$f" >> "$tables_tmp"
+  # CREATE TABLE block con IF NOT EXISTS para evitar conflictos si ya existe
+  awk 'BEGIN{p=0} 
+    /^CREATE[ \t]+TABLE/{p=1; sub(/^CREATE[ \t]+TABLE/, "CREATE TABLE IF NOT EXISTS"); print; next}
+    {if(p) print}
+    /^\);/{if(p){print ""; p=0}}' "$f" >> "$tables_tmp"
   # Constraints
   grep -E '^ALTER TABLE' "$f" >> "$constraints_tmp" || true
   # Indexes (skip PK idx names *_pkey)
-  grep -E '^CREATE (UNIQUE )?INDEX' "$f" | grep -Ev '_pkey\b' >> "$indexes_tmp" || true
+  grep -E '^CREATE (UNIQUE )?INDEX' "$f" | grep -Ev '_pkey\b' | sed -E 's/^CREATE (UNIQUE )?INDEX/CREATE \1INDEX IF NOT EXISTS/' >> "$indexes_tmp" || true
 done
 
 # Vistas
@@ -204,7 +207,8 @@ if [ -d "$SRC_DIR/PROCEDURES" ]; then
 fi
 
 # Escribir migraciones con deduplicación
-write_migration "create_${SCHEMA}_schema" "$schema_tmp"
+# Lógica normal: omitir siempre la creación de schema (se asume existente)
+echo "[SKIP] create_${SCHEMA}_schema: omitido (schema existente)"
 write_migration "create_${SCHEMA}_tables" "$tables_tmp"
 write_migration "add_${SCHEMA}_constraints" "$constraints_tmp"
 write_migration "create_${SCHEMA}_indexes" "$indexes_tmp"

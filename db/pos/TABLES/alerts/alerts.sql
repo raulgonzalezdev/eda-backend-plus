@@ -13,7 +13,8 @@ CREATE TABLE pos.alerts (
   kafka_topic character varying(128) DEFAULT 'alerts.suspect'::character varying,
   kafka_partition integer,
   kafka_offset bigint,
-  created_at timestamp with time zone DEFAULT now()
+  created_at timestamp with time zone DEFAULT now(),
+  test character varying(10)
 );
 ALTER TABLE pos.alerts ADD CONSTRAINT alerts_pkey PRIMARY KEY (id);
 CREATE UNIQUE INDEX alerts_pkey ON pos.alerts USING btree (id);

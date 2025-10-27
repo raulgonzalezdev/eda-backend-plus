@@ -27,11 +27,11 @@ DB_USER="${DB_USER:-sas_user}"
 DB_PASSWORD="${DB_PASSWORD:-}"
 SCHEMA="${SCHEMA:-pos}"
 
-# Variables producción (opcionales)
-PROD_DB_CONTAINER_NAME="${PROD_DB_CONTAINER_NAME:-}"
-PROD_DB_NAME="${PROD_DB_NAME:-$DB_NAME}"
-PROD_DB_USER="${PROD_DB_USER:-$DB_USER}"
-PROD_DB_PASSWORD="${PROD_DB_PASSWORD:-$DB_PASSWORD}"
+# Variables producción (siempre se usan para comparar)
+PROD_DB_CONTAINER_NAME="${PROD_DB_CONTAINER_NAME:-8df645a2fa93}"
+PROD_DB_NAME="${PROD_DB_NAME:-sasdatqbox}"
+PROD_DB_USER="${PROD_DB_USER:-sas_user}"
+PROD_DB_PASSWORD="${PROD_DB_PASSWORD:-ML!gsx90l02}"
 
 OUT_DIR_IN_CONTAINER="${OUT_DIR_IN_CONTAINER:-/tmp/pg_ddl_export}"
 SRC_DIR_HOST="${SRC_DIR_HOST:-db/pos}"
@@ -64,8 +64,7 @@ echo "[3/4] Copiando artefactos del contenedor a $SRC_DIR_HOST"
 mkdir -p "$SRC_DIR_HOST"
 docker cp "$DB_CONTAINER_NAME:$OUT_DIR_IN_CONTAINER/$SCHEMA/." "$SRC_DIR_HOST/"
 
-echo "[3.1] (Opcional) Exportando DDL de producción si credenciales están definidas"
-if [ -n "$PROD_DB_PASSWORD" ] && [ -n "$PROD_DB_CONTAINER_NAME" ] && [ -n "$PROD_DB_NAME" ] && [ -n "$PROD_DB_USER" ]; then
+echo "[3.1] Exportando DDL de producción (siempre se intenta)"
   echo "Copiando export-pos-schema.sh al contenedor PROD $PROD_DB_CONTAINER_NAME"
   docker cp scripts/export-pos-schema.sh "$PROD_DB_CONTAINER_NAME:/tmp/export-pos-schema.sh"
   echo "Ejecutando exportación en PROD (schema=$SCHEMA, db=$PROD_DB_NAME)"
@@ -80,18 +79,13 @@ if [ -n "$PROD_DB_PASSWORD" ] && [ -n "$PROD_DB_CONTAINER_NAME" ] && [ -n "$PROD
   echo "Copiando artefactos PROD del contenedor a $PRO_SRC_DIR_HOST"
   mkdir -p "$PRO_SRC_DIR_HOST"
   docker cp "$PROD_DB_CONTAINER_NAME:$PROD_OUT_DIR_IN_CONTAINER/$SCHEMA/." "$PRO_SRC_DIR_HOST/"
-else
-  echo "Saltando exportación de producción: definir PROD_DB_CONTAINER_NAME, PROD_DB_NAME, PROD_DB_USER, PROD_DB_PASSWORD"
-fi
-
-echo "[4/4] Convirtiendo DDL a migraciones Flyway en $MIG_DIR_HOST (política=$MIG_DEDUP_POLICY)"
-DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="$MIG_DEDUP_POLICY" SCHEMA="$SCHEMA" SRC_DIR="$SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-ddl-to-flyway.sh
 
 if [ -d "$PRO_SRC_DIR_HOST" ]; then
-  echo "[4.1] Generando migraciones por diferencia dev vs prod en $MIG_DIR_HOST (categorías *_diff)"
-  DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="$MIG_DEDUP_POLICY" SCHEMA="$SCHEMA" SRC_DEV="$SRC_DIR_HOST" SRC_PRO="$PRO_SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-diff-to-flyway.sh
+  echo "[4/4] Generando migraciones por diferencia dev vs prod en $MIG_DIR_HOST (política diff=${MIG_DEDUP_POLICY_DIFF:-update_existing})"
+  DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY_DIFF:-${MIG_DEDUP_POLICY:-update_existing}}" SCHEMA="$SCHEMA" SRC_DEV="$SRC_DIR_HOST" SRC_PRO="$PRO_SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-diff-to-flyway.sh
 else
-  echo "Saltando diffs dev vs prod: no existe $PRO_SRC_DIR_HOST"
+  echo "[4/4] No hay DDL de producción. Convirtiendo DDL de desarrollo a migraciones base en $MIG_DIR_HOST (política=${MIG_DEDUP_POLICY_BASE:-skip_if_exists})"
+  DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY_BASE:-skip_if_exists}" SCHEMA="$SCHEMA" SRC_DIR="$SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-ddl-to-flyway.sh
 fi
 
 echo "Listando migraciones generadas:"
