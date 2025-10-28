@@ -173,6 +173,12 @@ El proceso de migración está diseñado para ser robusto y predecible, aseguran
     -   Flyway detecta y aplica cualquier migración pendiente (que no se haya ejecutado previamente) sobre la base de datos de destino (configurada a través de las variables de entorno en `docker-compose.yml`).
     -   Esto garantiza que el esquema de la base de datos de producción siempre esté sincronizado con la versión del código que se está desplegando.
 
+  3. aplicar migraciones directamnete  
+    ```powershell
+   ./scripts/apply-migrations-pro.ps1 -Actions migrate,info -Schemas pos -ValidateOnMigrate -Password 'ML!gsx90l02'
+  
+    ```
+
 ### Simulación de Migraciones (Dry-run)
 
 Puedes previsualizar qué migraciones se crearían/actualizarían sin escribir archivos usando el modo dry-run. Esto es útil para revisar los cambios que se aplicarían en producción cuando trabajas con la política `update_existing`.

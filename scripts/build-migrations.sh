@@ -127,7 +127,7 @@ export PROD_CONTAINER_NAME="${PROD_CONTAINER_NAME:-patroni-master}"
 DEV_CONTAINER_NAME="${DEV_CONTAINER_NAME:-eda-backend-plus-db-1}"
 
 echo "Convirtiendo DDL (dev vs. pro) a migraciones Flyway (en $MIG_DIR)..."
-DRY_RUN="${DRY_RUN:-0}" scripts/convert-pos-diff-to-flyway.sh
+DRY_RUN="${DRY_RUN:-0}" bash scripts/convert-pos-diff-to-flyway.sh
 
 # Validar migraciones generadas (si no es dry-run)
 if [ "$DRY_RUN" = "0" ]; then

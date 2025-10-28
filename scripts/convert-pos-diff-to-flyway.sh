@@ -219,8 +219,7 @@ set_diff() {
 # Extraer definiciones de columnas (nombre|definición) desde un archivo CREATE TABLE exportado
 parse_columns_defs() {
   file="$1"
-  sed -n '1,/^CREATE[ \t]\+TABLE/d; /^);/q; /^[ \t]*$/d; s/^[ \t]*//; s/,[ \t]*$//; p' "$file" \
-    | awk '{print $1 "|" $0}'
+  sed -n '1,/^CREATE[ \t]+TABLE/d; /^);/q; /^[ \t]*$/d; s/^[ \t]*//; s/,[ \t]*$//; p' "$file" | awk '{print $1 "|" $0}'
 }
 
 # Preparar temporales
@@ -248,7 +247,7 @@ for f in "$SRC_DEV"/TABLES/*/*.sql; do
   if [ ! -f "$f_pro" ]; then
     # Copiar bloque CREATE TABLE y hacerlo idempotente con IF NOT EXISTS
     awk 'BEGIN{p=0} 
-      /^CREATE[ \t]+TABLE/{p=1; sub(/^CREATE[ \t]+TABLE/, "CREATE TABLE IF NOT EXISTS"); print; next}
+      /^CREATE[ \\t]+TABLE/{p=1; sub(/^CREATE[ \\t]+TABLE/, "CREATE TABLE IF NOT EXISTS"); print; next}
       {if(p) print}
       /^\);/{if(p){print ""; p=0}}' "$f" >> "$tables_tmp"
   fi
@@ -261,6 +260,7 @@ for f in "$SRC_DEV"/TABLES/*/*.sql; do
   tname="$(basename "$(dirname "$f")")"
   f_pro="$SRC_PRO/TABLES/$tname/$base"
   if [ -f "$f_pro" ]; then
+    echo "  - Comparando columnas en $tname..."
     dev_defs_set="$(mktemp)"; pro_defs_set="$(mktemp)"
     parse_columns_defs "$f" | tr -d '\r' | sort -u > "$dev_defs_set" || true
     parse_columns_defs "$f_pro" | tr -d '\r' | sort -u > "$pro_defs_set" || true
@@ -312,8 +312,8 @@ for f in "$SRC_DEV"/TABLES/*/*.sql; do
     fi
     while IFS= read -r col; do
       [ -n "$col" ] || continue
-      dev_line="$(awk -F'|' -v col="$col" '$1==col{print $0; exit}' "$dev_defs_set")"
-      pro_line="$(awk -F'|' -v col="$col" '$1==col{print $0; exit}' "$pro_defs_set")"
+      dev_line="$(awk -F'|' -v col="$col" \'$1==col{print $0; exit}\' "$dev_defs_set")"
+      pro_line="$(awk -F'|' -v col="$col" \'$1==col{print $0; exit}\' "$pro_defs_set")"
       [ -n "$dev_line" ] && [ -n "$pro_line" ] || continue
       dev_type="$(printf '%s' "$dev_line" | extract_col_type)"
       pro_type="$(printf '%s' "$pro_line" | extract_col_type)"
@@ -383,6 +383,7 @@ if [ -d "$SRC_DEV/VIEWS" ]; then
     [ -f "$f" ] || continue
     base="$(basename "$f")"; dir="$(basename "$(dirname "$f")")"
     f_pro="$SRC_PRO/VIEWS/$dir/$base"
+    echo "  - Verificando vista $dir..."
     if [ ! -f "$f_pro" ]; then
       # Reescribir a CREATE OR REPLACE VIEW
       sed -E 's/^CREATE[[:space:]]+VIEW/CREATE OR REPLACE VIEW/' "$f" >> "$views_tmp"; printf '\n' >> "$views_tmp"
@@ -404,6 +405,7 @@ for kind in FUNCTIONS PROCEDURES; do
       [ -f "$f" ] || continue
       base="$(basename "$f")"; dir="$(basename "$(dirname "$f")")"
       f_pro="$SRC_PRO/$kind/$dir/$base"
+      echo "  - Verificando $kind $dir..."
       if [ ! -f "$f_pro" ]; then
         sed -E 's/^CREATE[[:space:]]+FUNCTION/CREATE OR REPLACE FUNCTION/; s/^CREATE[[:space:]]+PROCEDURE/CREATE OR REPLACE PROCEDURE/' "$f" >> "$routines_tmp"; printf '\n' >> "$routines_tmp"
       else
@@ -438,7 +440,7 @@ parse_enum_from_file() {
     }
     p==1 {
       sub(/[[:space:]]*\);.*/, "");
-      gsub(/'\''/, "");
+      gsub(/''/, "");
       gsub(/^[[:space:]]+|[[:space:]]+$/, "");
       n = split($0, values, /[[:space:]]*,[[:space:]]*/);
       for (i = 1; i <= n; i++) {
@@ -472,7 +474,7 @@ fi
 to_map() {
   in="$1"; out="$2"
   : > "$out"
-  awk 'BEGIN{name=""} /^\|/{ if(name!=""){ vals=vals substr($0,2) "\n" } } !/^\|/{ if(name!=""){ print name"|"vals; vals="" } name=$0 } END{ if(name!=""){ print name"|"vals } }' "$in" | while IFS='|' read -r nm vals; do
+  awk 'BEGIN{name=""} /^\\|/{ if(name!=""){ vals=vals substr($0,2) "\\n" } } !/^\\|/{ if(name!=""){ print name"|"vals; vals="" } name=$0 } END{ if(name!=""){ print name"|"vals } }' "$in" | while IFS='|' read -r nm vals; do
     printf '%s|' "$nm" > "$out.tmp"
     printf '%s' "$vals" | sed '/^$/d' | tr '\n' '|' >> "$out.tmp"
     printf '\n' >> "$out.tmp"
@@ -489,6 +491,7 @@ get_vals() { nm="$1"; file="$2"; awk -F'|' -v n="$nm" '$1==n{for(i=2;i<=NF;i++)i
 has_type() { nm="$1"; file="$2"; awk -F'|' -v n="$nm" '$1==n{print 1; exit}' "$file" >/dev/null 2>&1; }
 
 # Crear tipos faltantes en PRO
+echo "  - Creando tipos ENUM nuevos..."
 awk -F'|' '{print $1}' "$dev_map" | while read -r tnm; do
   [ -n "$tnm" ] || continue
   if ! has_type "$tnm" "$pro_map"; then
@@ -509,6 +512,7 @@ SQL
 done
 
 # Añadir valores nuevos presentes en DEV pero no en PRO
+echo "  - Añadiendo nuevos valores a tipos ENUM existentes..."
 awk -F'|' '{print $1}' "$dev_map" | while read -r tnm; do
   [ -n "$tnm" ] || continue
   dev_vals_set="$(mktemp)"; pro_vals_set="$(mktemp)"
@@ -536,6 +540,7 @@ SQL
 done
 
 # Escribir migraciones con categoría "_diff"
+echo "Generando archivos de migración..."
 # No crear schema por diffs: siempre omitido
 
 write_migration "create_${SCHEMA}_tables_diff" "$tables_tmp"
@@ -569,5 +574,8 @@ fi
 # Limpiar temporales
 rm -f "$schema_tmp" "$tables_tmp" "$constraints_tmp" "$indexes_tmp" "$views_tmp" "$routines_tmp"
 rm -f "$types_create_tmp" "$types_alter_tmp" "$col_types_tmp" "$dev_types_list" "$pro_types_list" "$dev_map" "$pro_map"
+if [ -n "${LAST_PROD_VERSIONS:-}" ]; then
+  rm -f "$LAST_PROD_VERSIONS"
+fi
 
 echo "Migraciones por diferencia generadas (categorías *_diff)."
