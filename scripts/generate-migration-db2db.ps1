@@ -239,6 +239,11 @@ if ($Mode -eq 'pgdump') {
             if ($trim -match '(?i)databasechangeloglock' -or $trim -match '(?i)databasechangelog') { continue }
             if ($trim -match '(?i)^--\s*(Create|Initialize|Lock|Release)\s*(Database\s*Lock|Lock\s*Database)') { continue }
             if ($trim -match '(?i)^SET\s+SEARCH_PATH') { continue }
+            # Quitar sentencias de control transaccional: BEGIN;/COMMIT;/ROLLBACK;/START TRANSACTION;
+            if ($trim -match '^(?i)BEGIN\s*;\s*$') { continue }
+            if ($trim -match '^(?i)COMMIT\s*;\s*$') { continue }
+            if ($trim -match '^(?i)ROLLBACK\s*;\s*$') { continue }
+            if ($trim -match '^(?i)START\s+TRANSACTION\s*;\s*$') { continue }
             $filtered += $line
         }
         return ($filtered -join [Environment]::NewLine)

@@ -98,7 +98,14 @@ write_migration() {
     # Componer contenido final con header
     final_tmp="$(mktemp)"
     build_header > "$final_tmp"
-    cat "$content_tmp" >> "$final_tmp"
+    # Filtrar BEGIN;/COMMIT;/ROLLBACK;/START TRANSACTION; del contenido fuente
+    tr -d '\r' < "$content_tmp" \
+      | sed -E 's/[[:space:]]+$//' \
+      | sed -E '/^[[:space:]]*BEGIN[[:space:]]*;[[:space:]]*$/d; \
+                /^[[:space:]]*COMMIT[[:space:]]*;[[:space:]]*$/d; \
+                /^[[:space:]]*ROLLBACK[[:space:]]*;[[:space:]]*$/d; \
+                /^[[:space:]]*START[[:space:]]+TRANSACTION[[:space:]]*;[[:space:]]*$/d' \
+      >> "$final_tmp"
     existing="$(find_existing_by_category "$category")"
     if [ -n "${existing:-}" ] && [ -f "$existing" ]; then
       new_norm="$(mktemp)"; old_norm="$(mktemp)"
@@ -177,7 +184,14 @@ write_migration() {
     target="$MIG_DIR/V${v}__${category}.sql"
     final_tmp="$(mktemp)"
     build_header > "$final_tmp"
-    cat "$content_tmp" >> "$final_tmp"
+    # Filtrar BEGIN;/COMMIT;/ROLLBACK;/START TRANSACTION; del contenido fuente
+    tr -d '\r' < "$content_tmp" \
+      | sed -E 's/[[:space:]]+$//' \
+      | sed -E '/^[[:space:]]*BEGIN[[:space:]]*;[[:space:]]*$/d; \
+                /^[[:space:]]*COMMIT[[:space:]]*;[[:space:]]*$/d; \
+                /^[[:space:]]*ROLLBACK[[:space:]]*;[[:space:]]*$/d; \
+                /^[[:space:]]*START[[:space:]]+TRANSACTION[[:space:]]*;[[:space:]]*$/d' \
+      >> "$final_tmp"
     cp "$final_tmp" "$target"
     rm -f "$final_tmp"
     echo "[CREATE] $category: creado $target"

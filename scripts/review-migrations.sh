@@ -66,10 +66,10 @@ for f in "$MIG_DIR"/V*__*.sql; do
     file_warns=$((file_warns+1))
   fi
 
-  # BEGIN/COMMIT
-  if grep -q -E '(^|[[:space:]])BEGIN(;|[[:space:]]|$)|(^|[[:space:]])COMMIT(;|[[:space:]]|$)' "$content_tmp"; then
-    grep -n -E '(^|[[:space:]])BEGIN(;|[[:space:]]|$)|(^|[[:space:]])COMMIT(;|[[:space:]]|$)' "$content_tmp"
-    echo "[WARN] BEGIN/COMMIT presentes; Flyway gestiona transacciones automáticamente"
+  # BEGIN/COMMIT transaccionales (con punto y coma). No aplicar a BEGIN de DO $$ ... $$
+  if grep -q -E '^[[:space:]]*BEGIN[[:space:]]*;[[:space:]]*$|^[[:space:]]*COMMIT[[:space:]]*;[[:space:]]*$|^[[:space:]]*ROLLBACK[[:space:]]*;[[:space:]]*$|^[[:space:]]*START[[:space:]]+TRANSACTION[[:space:]]*;[[:space:]]*$' "$content_tmp"; then
+    grep -n -E '^[[:space:]]*BEGIN[[:space:]]*;[[:space:]]*$|^[[:space:]]*COMMIT[[:space:]]*;[[:space:]]*$|^[[:space:]]*ROLLBACK[[:space:]]*;[[:space:]]*$|^[[:space:]]*START[[:space:]]+TRANSACTION[[:space:]]*;[[:space:]]*$' "$content_tmp"
+    echo "[WARN] BEGIN/COMMIT/ROLLBACK/START TRANSACTION detectados; Flyway gestiona transacciones"
     file_warns=$((file_warns+1))
   fi
 

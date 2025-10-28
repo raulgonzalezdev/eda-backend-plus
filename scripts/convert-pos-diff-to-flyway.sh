@@ -91,7 +91,15 @@ write_migration() {
   # Componer contenido final con header
   final_tmp="$(mktemp)"
   build_header > "$final_tmp"
-  cat "$content_tmp" >> "$final_tmp"
+  # Filtrar sentencias de control transaccional que no deben estar en migraciones Flyway
+  # (BEGIN;/COMMIT;/ROLLBACK;/START TRANSACTION;) pero conservar BEGIN de bloques DO $$ ... $$
+  tr -d '\r' < "$content_tmp" \
+    | sed -E 's/[[:space:]]+$//' \
+    | sed -E '/^[[:space:]]*BEGIN[[:space:]]*;[[:space:]]*$/d; \
+              /^[[:space:]]*COMMIT[[:space:]]*;[[:space:]]*$/d; \
+              /^[[:space:]]*ROLLBACK[[:space:]]*;[[:space:]]*$/d; \
+              /^[[:space:]]*START[[:space:]]+TRANSACTION[[:space:]]*;[[:space:]]*$/d' \
+    >> "$final_tmp"
   existing="$(find_existing_by_category "$category")"
 
   # Modo dry-run: mostrar qué ocurriría según la política de deduplicación
