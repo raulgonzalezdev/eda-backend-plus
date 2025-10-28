@@ -1,4 +1,228 @@
+version: '3.8'
+
 services:
+  # ===== ETCD CLUSTER PARA PATRONI =====
+  etcd1:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: etcd1
+    environment:
+      ETCD_NAME: etcd1
+      ETCD_DATA_DIR: /etcd-data
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd1:2379
+      ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd1:2380
+      ETCD_INITIAL_CLUSTER: etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      ETCD_INITIAL_CLUSTER_STATE: new
+      ETCD_INITIAL_CLUSTER_TOKEN: etcd-cluster-token
+    volumes:
+      - etcd1_data:/etcd-data
+    networks:
+      - kafka-network
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+
+  etcd2:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: etcd2
+    environment:
+      ETCD_NAME: etcd2
+      ETCD_DATA_DIR: /etcd-data
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd2:2379
+      ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd2:2380
+      ETCD_INITIAL_CLUSTER: etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      ETCD_INITIAL_CLUSTER_STATE: new
+      ETCD_INITIAL_CLUSTER_TOKEN: etcd-cluster-token
+    volumes:
+      - etcd2_data:/etcd-data
+    networks:
+      - kafka-network
+
+  etcd3:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: etcd3
+    environment:
+      ETCD_NAME: etcd3
+      ETCD_DATA_DIR: /etcd-data
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd3:2379
+      ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd3:2380
+      ETCD_INITIAL_CLUSTER: etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      ETCD_INITIAL_CLUSTER_STATE: new
+      ETCD_INITIAL_CLUSTER_TOKEN: etcd-cluster-token
+    volumes:
+      - etcd3_data:/etcd-data
+    networks:
+      - kafka-network
+
+  # ===== PATRONI POSTGRESQL CLUSTER =====
+  patroni-master:
+    build:
+      context: .
+      dockerfile: Dockerfile.patroni
+    container_name: patroni-master
+    hostname: patroni-master
+    env_file:
+      - .env
+    environment:
+      PATRONI_NAME: patroni-master
+      PATRONI_NAMESPACE: /db/
+      PATRONI_SCOPE: postgres-cluster
+      PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
+      # Usar subdirectorio para evitar EBUSY al renombrar el punto de montaje
+      PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data/pgdata
+      PATRONI_POSTGRESQL_PGPASS: /tmp/pgpass
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: patroni-master:5432
+      PATRONI_SUPERUSER_USERNAME: postgres
+      PATRONI_SUPERUSER_PASSWORD: postgres_super_pass
+      PATRONI_REPLICATION_USERNAME: replicator
+      PATRONI_REPLICATION_PASSWORD: repl_pass_2024
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: patroni-master:8008
+    volumes:
+      - patroni_master_data:/var/lib/postgresql/data
+      - ./patroni-config:/etc/patroni
+      - ./sql/create_pos_schema_and_tables.sql:/docker-entrypoint-initdb.d/create_pos_schema_and_tables.sql
+      - ./scripts/init-patroni-database.sh:/docker-entrypoint-initdb.d/init-patroni-database.sh
+    networks:
+      - kafka-network
+    ports:
+      - "5435:5432"
+      - "8008:8008"
+    depends_on:
+      - etcd1
+      - etcd2
+      - etcd3
+
+  patroni-replica1:
+    build:
+      context: .
+      dockerfile: Dockerfile.patroni
+    container_name: patroni-replica1
+    hostname: patroni-replica1
+    env_file:
+      - .env
+    environment:
+      PATRONI_NAME: patroni-replica1
+      PATRONI_NAMESPACE: /db/
+      PATRONI_SCOPE: postgres-cluster
+      PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
+      # Usar subdirectorio para evitar EBUSY al renombrar el punto de montaje
+      PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data/pgdata
+      PATRONI_POSTGRESQL_PGPASS: /tmp/pgpass
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: patroni-replica1:5432
+      PATRONI_SUPERUSER_USERNAME: postgres
+      PATRONI_SUPERUSER_PASSWORD: postgres_super_pass
+      PATRONI_REPLICATION_USERNAME: replicator
+      PATRONI_REPLICATION_PASSWORD: repl_pass_2024
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: patroni-replica1:8008
+    volumes:
+      - patroni_replica1_data:/var/lib/postgresql/data
+      - ./patroni-config:/etc/patroni
+    networks:
+      - kafka-network
+    ports:
+      - "5436:5432"
+      - "8009:8008"
+    depends_on:
+      - etcd1
+      - etcd2
+      - etcd3
+
+  patroni-replica2:
+    build:
+      context: .
+      dockerfile: Dockerfile.patroni
+    container_name: patroni-replica2
+    hostname: patroni-replica2
+    env_file:
+      - .env
+    environment:
+      PATRONI_NAME: patroni-replica2
+      PATRONI_NAMESPACE: /db/
+      PATRONI_SCOPE: postgres-cluster
+      PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
+      # Usar subdirectorio para evitar EBUSY al renombrar el punto de montaje
+      PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data/pgdata
+      PATRONI_POSTGRESQL_PGPASS: /tmp/pgpass
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: patroni-replica2:5432
+      PATRONI_SUPERUSER_USERNAME: postgres
+      PATRONI_SUPERUSER_PASSWORD: postgres_super_pass
+      PATRONI_REPLICATION_USERNAME: replicator
+      PATRONI_REPLICATION_PASSWORD: repl_pass_2024
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: patroni-replica2:8008
+    volumes:
+      - patroni_replica2_data:/var/lib/postgresql/data
+      - ./patroni-config:/etc/patroni
+    networks:
+      - kafka-network
+    ports:
+      - "5437:5432"
+      - "8010:8008"
+    depends_on:
+      - etcd1
+      - etcd2
+      - etcd3
+
+  # ===== DB BOOTSTRAP (IDEMPOTENTE) =====
+  db-bootstrap:
+    image: postgres:15
+    container_name: db-bootstrap
+    depends_on:
+      - patroni-master
+      - haproxy
+    environment:
+      PGHOST: haproxy
+      PGPORT: 5000
+      PGUSER: postgres
+      PG_SUPER_PASS: postgres_super_pass
+      APP_DB_NAME: ${DB_NAME}
+      APP_DB_USER: ${DB_USER}
+      APP_DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./sql:/sql:ro
+      - ./scripts:/scripts:ro
+    networks:
+      - kafka-network
+    command: ["bash","-lc","/scripts/bootstrap-db.sh"]
+    restart: "no"
+
+  # ===== HAPROXY PARA POSTGRESQL HA =====
+  haproxy:
+    image: haproxy:2.8
+    container_name: haproxy-patroni
+    volumes:
+      - ./haproxy-patroni.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - kafka-network
+    ports:
+      - "5000:5000"  # Master (write)
+      - "5001:5001"  # Replicas (read)
+      - "7000:7000"  # HAProxy stats
+    depends_on:
+      - patroni-master
+      - patroni-replica1
+      - patroni-replica2
+
+  # ===== KAFKA CLUSTER =====
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: zookeeper
@@ -7,6 +231,8 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    networks:
+      - kafka-network
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -15,35 +241,265 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
-      - "9094:9094"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
-      - kafka_data:/var/lib/kafka/data
+      - kafka_data_1:/var/lib/kafka/data
+    networks:
+      - kafka-network
 
-  app:
-    build: .
+  kafka2:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka2
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data_2:/var/lib/kafka/data
+    networks:
+      - kafka-network
+
+  kafka3:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka3
+    depends_on:
+      - zookeeper
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data_3:/var/lib/kafka/data
+    networks:
+      - kafka-network
+
+  # ===== KAFKA TOPICS INITIALIZATION =====
+  kafka-init:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka-init
     depends_on:
       - kafka
+      - kafka2
+      - kafka3
+    networks:
+      - kafka-network
+    command: >
+      bash -c "
+        echo 'Waiting for Kafka cluster to be ready...'
+        sleep 90
+        echo 'Creating Kafka topics...'
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 1 || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 1 || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 1 || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_config --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_offsets --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_status --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
+        echo 'Topics created successfully!'
+        echo 'Listing all topics:'
+        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --list || true
+        echo 'Topic creation completed. Container will exit.'
+      "
+    restart: "no"
+
+  # ===== DEBEZIUM PARA CDC =====
+  debezium:
+    image: debezium/connect:2.5
+    container_name: debezium
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+      - haproxy
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: debezium_config
+      OFFSET_STORAGE_TOPIC: debezium_offsets
+      STATUS_STORAGE_TOPIC: debezium_status
+      CONNECT_LOG4J_ROOT_LOGLEVEL: DEBUG
+    networks:
+      - kafka-network
+    volumes:
+      - ./config:/config
+
+  debezium-connector-setup:
+    image: confluentinc/cp-kafkacat:latest
+    container_name: debezium-connector-setup
+    depends_on:
+      - debezium
+    networks:
+      - kafka-network
+    command: >
+      bash -c '
+        echo "Waiting for Debezium Connect to start...";
+        while ! curl -s -f -o /dev/null http://debezium:8083/; do
+          echo "Debezium Connect is not ready yet, waiting...";
+          sleep 5;
+        done;
+        echo "Debezium ready. Applying connector config (create or update)...";
+        if curl -s -f -o /dev/null http://debezium:8083/connectors/outbox-connector; then
+          echo "Connector exists, updating config...";
+          curl -s -X PUT -H "Content-Type: application/json" --data @/config/debezium-connector-update.json http://debezium:8083/connectors/outbox-connector/config;
+        else
+          echo "Connector not found, creating...";
+          curl -s -X POST -H "Content-Type: application/json" --data @/config/debezium-connector.json http://debezium:8083/connectors;
+        fi;
+        echo "Connector setup finished.";
+      '
+    volumes:
+      - ./config:/config
+    restart: "no"
+
+  # ===== NGINX LOAD BALANCER =====
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-load-balancer
+    depends_on:
+      - app1
+      - app2
+      - app3
+    ports:
+      - "80:80"
+      - "8080:8080"
+      - "8090:8090"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # ===== EDA BACKEND APPLICATIONS =====
+  app1:
+    build: .
+    container_name: eda-backend-app1
+    depends_on:
+      - kafka
+      - kafka2
+      - kafka3
+      - haproxy
     env_file:
       - .env
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
       - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
-      - DB_HOST=${DB_HOST:-sasdatqbox-db-1}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_NAME=${DB_NAME:-postgres}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=patroni-master
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
+      - INSTANCE_ID=app1
     ports:
-      - "8080:8080"
+      - "8081:8080"
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  app2:
+    build: .
+    container_name: eda-backend-app2
+    depends_on:
+      - kafka
+      - kafka2
+      - kafka3
+      - haproxy
+    env_file:
+      - .env
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
+      - JWT_SECRET=${JWT_SECRET}
+      - ALERT_THRESHOLD=10000
+      - DB_HOST=patroni-master
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
+      - INSTANCE_ID=app2
+    ports:
+      - "8082:8080"
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  app3:
+    build: .
+    container_name: eda-backend-app3
+    depends_on:
+      - kafka
+      - kafka2
+      - kafka3
+      - haproxy
+    env_file:
+      - .env
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
+      - JWT_SECRET=${JWT_SECRET}
+      - ALERT_THRESHOLD=10000
+      - DB_HOST=patroni-master
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
+      - INSTANCE_ID=app3
+    ports:
+      - "8084:8080"
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
-  kafka_data: {}
+  etcd1_data:
+  etcd2_data:
+  etcd3_data:
+  patroni_master_data:
+  patroni_replica1_data:
+  patroni_replica2_data:
+  kafka_data_1:
+  kafka_data_2:
+  kafka_data_3:
+
+networks:
+  kafka-network:
+    driver: bridge

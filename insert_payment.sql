@@ -1,1 +1,0 @@
-INSERT INTO pos.outbox (id, aggregatetype, aggregateid, type, payload) VALUES (gen_random_uuid(), 'payment', '12345', 'PaymentCreated', '{\"id\": \"a-unique-id\", \"amount\": 2000}');

@@ -7,30 +7,30 @@ CREATE TABLE IF NOT EXISTS pos.users (
     role VARCHAR(50),
     first_name VARCHAR(100),
     last_name VARCHAR(100),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS pos.outbox (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
     aggregate_type VARCHAR(255) NOT NULL,
     aggregate_id VARCHAR(255) NOT NULL,
     type VARCHAR(255) NOT NULL,
-    payload JSONB,
+    payload JSON,
     sent BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS pos.alerts (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
     event_id VARCHAR(255),
     alert_type VARCHAR(255) NOT NULL,
     source_type VARCHAR(255),
     amount NUMERIC(10, 2),
-    payload JSONB,
+    payload JSON,
     kafka_partition INTEGER,
     kafka_offset BIGINT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS pos.payments (
@@ -39,8 +39,8 @@ CREATE TABLE IF NOT EXISTS pos.payments (
     amount NUMERIC(10, 2),
     currency VARCHAR(10),
     account_id VARCHAR(255),
-    payload JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    payload JSON,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS pos.transfers (
@@ -49,6 +49,6 @@ CREATE TABLE IF NOT EXISTS pos.transfers (
     amount NUMERIC(10, 2),
     from_account VARCHAR(255),
     to_account VARCHAR(255),
-    payload JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    payload JSON,
+    created_at TIMESTAMP DEFAULT NOW()
 );
