@@ -6,13 +6,13 @@ set -eu
 # - SRC_PRO: directorio con DDL prod (por defecto db-pro/pos)
 # - MIG_DIR: destino de migraciones (por defecto src/main/resources/db/migration)
 # - SCHEMA: esquema (por defecto pos)
-# - MIG_DEDUP_POLICY: update_existing | skip_if_exists | create_new_version (por defecto update_existing)
+# - MIG_DEDUP_POLICY: update_existing | skip_if_exists | create_new_version (por defecto create_new_version)
 
 SRC_DEV="${SRC_DEV:-db/pos}"
 SRC_PRO="${SRC_PRO:-db-pro/pos}"
 MIG_DIR="${MIG_DIR:-src/main/resources/db/migration}"
 SCHEMA="${SCHEMA:-pos}"
-MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY:-update_existing}"
+MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY:-create_new_version}"
 
 mkdir -p "$MIG_DIR"
 
@@ -441,7 +441,7 @@ awk -F'|' '{print $1}' "$dev_map" | while read -r tnm; do
   if ! has_type "$tnm" "$pro_map"; then
     # Construir lista de valores
     vals="$(get_vals "$tnm" "$dev_map" | sed "s/^/'/; s/$/'/" | paste -sd, -)"
-    cat >> "$types_create_tmp" <<SQL
+    cat >> "$types_create_tmp" <<'SQL'
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -467,7 +467,7 @@ awk -F'|' '{print $1}' "$dev_map" | while read -r tnm; do
   fi
   set_diff "$dev_vals_set" "$pro_vals_set" | while read -r val; do
     [ -n "$val" ] || continue
-    cat >> "$types_alter_tmp" <<SQL
+    cat >> "$types_alter_tmp" <<'SQL'
 DO $$
 BEGIN
   IF NOT EXISTS (

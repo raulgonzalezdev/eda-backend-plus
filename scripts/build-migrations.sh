@@ -39,7 +39,7 @@ PROD_DB_PASSWORD="${PROD_DB_PASSWORD:-ML!gsx90l02}"
 OUT_DIR_IN_CONTAINER="${OUT_DIR_IN_CONTAINER:-/tmp/pg_ddl_export}"
 SRC_DIR_HOST="${SRC_DIR_HOST:-db/pos}"
 MIG_DIR_HOST="${MIG_DIR_HOST:-src/main/resources/db/migration}"
-MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY:-update_existing}"
+MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY:-create_new_version}"
 MIG_FORCE_BASE="${MIG_FORCE_BASE:-0}"
 
 # Perfil opcional: si es 'test' redirige salida a migration-test (solo visualización)
@@ -111,8 +111,8 @@ if [ "$MIG_FORCE_BASE" = "1" ]; then
   echo "[4/4] Forzado a BASE: Convirtiendo DDL de DEV a migraciones base en $MIG_DIR_HOST (política=${MIG_DEDUP_POLICY_BASE:-skip_if_exists})"
   DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY_BASE:-skip_if_exists}" SCHEMA="$SCHEMA" SRC_DIR="$SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-ddl-to-flyway.sh
 elif [ -d "$PRO_SRC_DIR_HOST" ] && [ "$pro_ddl_count" -gt 0 ]; then
-  echo "[4/4] Generando migraciones por diferencia dev vs prod en $MIG_DIR_HOST (política diff=${MIG_DEDUP_POLICY_DIFF:-update_existing})"
-  DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY_DIFF:-${MIG_DEDUP_POLICY:-update_existing}}" SCHEMA="$SCHEMA" SRC_DEV="$SRC_DIR_HOST" SRC_PRO="$PRO_SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-diff-to-flyway.sh
+  echo "[4/4] Generando migraciones por diferencia dev vs prod en $MIG_DIR_HOST (política diff=${MIG_DEDUP_POLICY_DIFF:-create_new_version})"
+  DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY_DIFF:-${MIG_DEDUP_POLICY:-create_new_version}}" SCHEMA="$SCHEMA" SRC_DEV="$SRC_DIR_HOST" SRC_PRO="$PRO_SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-diff-to-flyway.sh
 else
   echo "[4/4] DDL de producción vacío o no disponible. Convirtiendo DDL de DEV a migraciones base en $MIG_DIR_HOST (política=${MIG_DEDUP_POLICY_BASE:-skip_if_exists})"
   DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY_BASE:-skip_if_exists}" SCHEMA="$SCHEMA" SRC_DIR="$SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-ddl-to-flyway.sh

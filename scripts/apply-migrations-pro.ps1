@@ -2,13 +2,16 @@ param(
   [string]$Container = 'patroni-master',
   [string]$Db = 'sasdatqbox',
   [string]$User = 'sas_user',
-  [string]$Password,
+  [string]$Password = 'ML!gsx90l02',
   [string]$Schemas = 'public,pos',
   [string[]]$Actions = @('info','validate'),
   [switch]$Test,
   [string]$Network,
   [switch]$PreviewOnly,
-  [switch]$ValidateOnMigrate
+  [switch]$ValidateOnMigrate,
+  [string]$BaselineVersion,
+  [switch]$BaselineOnMigrate,
+  [string]$BaselineDescription = 'Baseline'
 )
 
 Set-StrictMode -Version Latest
@@ -74,6 +77,9 @@ foreach ($action in $Actions) {
     '-outputType=json'
   )
   if ($ValidateOnMigrate) { $args += '-validateOnMigrate=true' }
+  if ($BaselineOnMigrate) { $args += '-baselineOnMigrate=true' }
+  if ($BaselineVersion) { $args += "-baselineVersion=$BaselineVersion" }
+  if ($BaselineDescription) { $args += "-baselineDescription=$BaselineDescription" }
   Write-Host "[RUN] docker $($args -join ' ')" -ForegroundColor DarkGray
   $out = & docker @args 2>&1
   $file = Join-Path $reports "patroni-$action-$ts.json"

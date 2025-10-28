@@ -15,8 +15,8 @@ set -eu
 SRC_DIR="${SRC_DIR:-db/pos}"
 MIG_DIR="${MIG_DIR:-src/main/resources/db/migration}"
 SCHEMA="${SCHEMA:-pos}"
-# Política de deduplicación: update_existing | skip_if_exists | create_new_version
-MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY:-update_existing}"
+# Política de deduplicación: update_existing | skip_if_exists | create_new_version (por defecto create_new_version)
+MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY:-create_new_version}"
 
 mkdir -p "$MIG_DIR"
 
