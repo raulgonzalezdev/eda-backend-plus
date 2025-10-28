@@ -3,7 +3,8 @@ Param(
     [string]$EntitiesPackage = "com.rgq.edabank",
     [string]$OutputDir = "src/main/resources/db/migration",
     [string]$DefaultSchema = "pos",
-    [switch]$NoDocker
+    [switch]$NoDocker,
+    [switch]$Test
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,6 +32,10 @@ $dbPassword = $envVars['DB_PASSWORD']; if (-not $dbPassword -or $dbPassword -eq 
 
 $jdbcUrl = "jdbc:postgresql://$dbHost:$dbPort/$dbName"
 $changeLogYaml = Join-Path $liquibaseWorkDir 'generated-changelog.yaml'
+$generatedSql = Join-Path $liquibaseWorkDir 'update-sql.sql'
+
+# Modo visualización: redirigir salida a migration-test
+if ($Test) { $OutputDir = 'src/main/resources/db/migration-test' }
 $generatedSql = Join-Path $liquibaseWorkDir 'generated.sql'
 
 function Run-Maven([string]$Args) {
@@ -63,7 +68,7 @@ if (-not (Test-Path -Path $generatedSql)) {
 
 # Crear archivo de migración con nombre correcto
 $newScript = Join-Path $PSScriptRoot 'new-migration.ps1'
-$migrationPath = & $newScript -Description $Description -Dir $OutputDir
+$migrationPath = & $newScript -Description $Description -Dir $OutputDir -Schema $DefaultSchema -Test:$Test
 
 $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'
 $header = @(

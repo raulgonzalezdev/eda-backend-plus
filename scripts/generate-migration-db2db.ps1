@@ -17,7 +17,8 @@ Param(
     [string]$OutputDir = "src/main/resources/db/migration",
     [switch]$NoDocker,
     [string]$DockerNetwork = "",
-    [ValidateSet('liquibase','pgdump')][string]$Mode = 'pgdump'
+    [ValidateSet('liquibase','pgdump')][string]$Mode = 'pgdump',
+    [switch]$Test
 )
 
 $ErrorActionPreference = 'Stop'
@@ -255,7 +256,7 @@ if ($Mode -ne 'pgdump') {
 # Crear el archivo de migración Flyway y anexar el SQL generado
 $newMigrationScript = Join-Path $PSScriptRoot 'new-migration.ps1'
 if (-not (Test-Path -Path $newMigrationScript)) { throw "No se encontró scripts/new-migration.ps1" }
-$migrationPath = & $newMigrationScript -Description $Description -Dir $OutputDir
+$migrationPath = & $newMigrationScript -Description $Description -Dir $OutputDir -Schema $Schema -Test:$Test
 
 if ($Mode -eq 'pgdump') {
     Write-Host "Modo pgdump: se generaron archivos SQL de objetos. Usa estos dumps para construir migraciones." -ForegroundColor Green
@@ -279,3 +280,5 @@ Set-Content -Path $migrationPath -Value ($header + $sqlContent) -Encoding UTF8
 
 Write-Host "Listo: $migrationPath" -ForegroundColor Green
 return $migrationPath
+# Modo visualización: redirigir salida a migration-test
+if ($Test) { $OutputDir = 'src/main/resources/db/migration-test' }

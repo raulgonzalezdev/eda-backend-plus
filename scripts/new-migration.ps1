@@ -2,7 +2,8 @@ Param(
     [Parameter(Mandatory = $true)][string]$Description,
     [string]$Dir = "src/main/resources/db/migration",
     [string]$Schema = "pos",
-    [switch]$OpenFile
+    [switch]$OpenFile,
+    [switch]$Test
 )
 
 function Get-NextVersion([string]$MigrationDir) {
@@ -25,6 +26,13 @@ function To-Slug([string]$Text) {
     $slug = $slug -replace '[^a-z0-9]+', '_'
     $slug = $slug -replace '_+', '_'
     return $slug.Trim('_')
+}
+
+$ErrorActionPreference = 'Stop'
+
+# Si se solicita modo visualización (-Test), redirigir a migration-test
+if ($Test) {
+    $Dir = "src/main/resources/db/migration-test"
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path

@@ -1,0 +1,16 @@
+{
+  "name": "testdb",
+  "url": "jdbc:postgresql://127.0.0.1:5432/sasdatqbox",
+  "user": "sas_user",
+  "passwordEnv": "FW_PASSWORD_TESTDB",
+  "schemas": ["public", "pos"],
+  "locations": [
+    "filesystem:src/main/resources/db/migration",
+    "filesystem:src/main/resources/db/callbacks"
+  ],
+  "placeholders": {
+    "schema": "pos"
+  },
+  "actions": ["clean", "migrate", "info"],
+  "validate": true
+}

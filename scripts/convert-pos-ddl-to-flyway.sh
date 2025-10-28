@@ -57,6 +57,32 @@ normalize_to_tmp() {
   tr -d '\r' < "$src" | sed -E 's/[[:space:]]+$//' > "$tmp"
 }
 
+# Header estándar para todas las migraciones (asegura resolución de tipos/enum en pos)
+build_header() {
+  cat <<HDR
+-- Schema: ${SCHEMA}
+-- Nota: Flyway ejecuta cada migración en una transacción
+SET LOCAL search_path TO ${SCHEMA};
+
+HDR
+}
+
+# Reordenar constraints: primero PK, luego UNIQUE, CHECK y al final FKs
+order_constraints() {
+  in_file="$1"; out_file="$2"
+  [ -f "$in_file" ] || { : > "$out_file"; return 0; }
+  awk '
+    {
+      line=$0; key=50;
+      if (line ~ /PRIMARY[[:space:]]+KEY/) key=10;
+      else if (line ~ /UNIQUE\b/) key=20;
+      else if (line ~ /CHECK\b/) key=30;
+      else if (line ~ /FOREIGN[[:space:]]+KEY/) key=40;
+      printf("%02d %s\n", key, line);
+    }
+  ' "$in_file" | sort -n | cut -d' ' -f2- > "$out_file"
+}
+
 write_migration() {
   category="$1"    # p.ej. create_pos_tables
   content_tmp="$2" # archivo temporal con contenido
@@ -69,17 +95,21 @@ write_migration() {
 
   # Modo dry-run: mostrar qué ocurriría según la política de deduplicación
   if [ "${DRY_RUN:-0}" = "1" ]; then
+    # Componer contenido final con header
+    final_tmp="$(mktemp)"
+    build_header > "$final_tmp"
+    cat "$content_tmp" >> "$final_tmp"
     existing="$(find_existing_by_category "$category")"
     if [ -n "${existing:-}" ] && [ -f "$existing" ]; then
       new_norm="$(mktemp)"; old_norm="$(mktemp)"
-      normalize_to_tmp "$content_tmp" "$new_norm"
+      normalize_to_tmp "$final_tmp" "$new_norm"
       normalize_to_tmp "$existing" "$old_norm"
       new_h="$(hash_file "$new_norm")"
       old_h="$(hash_file "$old_norm")"
       rm -f "$new_norm" "$old_norm"
       if [ "$new_h" = "$old_h" ]; then
         echo "[DRY-RUN] $category: sin cambios; reutilizaría $existing"
-        return 0
+        rm -f "$final_tmp"; return 0
       fi
       case "$MIG_DEDUP_POLICY" in
         update_existing)
@@ -100,14 +130,18 @@ write_migration() {
       v="$(next_version)"; target="$MIG_DIR/V${v}__${category}.sql"
       echo "[DRY-RUN] $category: se crearía $target"
     fi
-    return 0
+    rm -f "$final_tmp"; return 0
   fi
 
   existing="$(find_existing_by_category "$category")"
   if [ -n "${existing:-}" ] && [ -f "$existing" ]; then
     # Comparar contenido normalizado
     new_norm="$(mktemp)"; old_norm="$(mktemp)"
-    normalize_to_tmp "$content_tmp" "$new_norm"
+    # Componer contenido final con header
+    final_tmp="$(mktemp)"
+    build_header > "$final_tmp"
+    cat "$content_tmp" >> "$final_tmp"
+    normalize_to_tmp "$final_tmp" "$new_norm"
     normalize_to_tmp "$existing" "$old_norm"
     new_h="$(hash_file "$new_norm")"
     old_h="$(hash_file "$old_norm")"
@@ -115,12 +149,12 @@ write_migration() {
 
     if [ "$new_h" = "$old_h" ]; then
       echo "[SKIP] $category: sin cambios; reutilizando $existing"
-      return 0
+      rm -f "$final_tmp"; return 0
     fi
 
     case "$MIG_DEDUP_POLICY" in
       update_existing)
-        cp "$content_tmp" "$existing"
+        cp "$final_tmp" "$existing"
         echo "[UPDATE] $category: actualizado contenido en $existing"
         ;;
       skip_if_exists)
@@ -129,7 +163,7 @@ write_migration() {
       create_new_version)
         v="$(next_version)"
         target="$MIG_DIR/V${v}__${category}.sql"
-        cp "$content_tmp" "$target"
+        cp "$final_tmp" "$target"
         echo "[NEW] $category: creado $target"
         ;;
       *)
@@ -137,10 +171,15 @@ write_migration() {
         exit 1
         ;;
     esac
+    rm -f "$final_tmp"
   else
     v="$(next_version)"
     target="$MIG_DIR/V${v}__${category}.sql"
-    cp "$content_tmp" "$target"
+    final_tmp="$(mktemp)"
+    build_header > "$final_tmp"
+    cat "$content_tmp" >> "$final_tmp"
+    cp "$final_tmp" "$target"
+    rm -f "$final_tmp"
     echo "[CREATE] $category: creado $target"
   fi
 }
@@ -173,6 +212,11 @@ for f in "$SRC_DIR"/TABLES/*/*.sql; do
   # Indexes (skip PK idx names *_pkey)
   grep -E '^CREATE (UNIQUE )?INDEX' "$f" | grep -Ev '_pkey\b' | sed -E 's/^CREATE (UNIQUE )?INDEX/CREATE \1INDEX IF NOT EXISTS/' >> "$indexes_tmp" || true
 done
+
+# Reordenar constraints para garantizar PK/UNIQUE antes de FKs
+constraints_ord_tmp="$(mktemp)"
+order_constraints "$constraints_tmp" "$constraints_ord_tmp"
+mv "$constraints_ord_tmp" "$constraints_tmp"
 
 # Vistas
 if [ -d "$SRC_DIR/VIEWS" ]; then
