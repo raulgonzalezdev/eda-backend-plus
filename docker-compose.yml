@@ -411,6 +411,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
       - INSTANCE_ID=app1
+    entrypoint: ["tail", "-f", "/dev/null"]
     ports:
       - "8081:8080"
     networks:

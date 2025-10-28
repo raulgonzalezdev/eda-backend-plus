@@ -1,64 +1,19 @@
--- Crear esquema pos y tablas necesarias por la aplicación
-CREATE SCHEMA IF NOT EXISTS pos;
+-- Crear esquema pos
+CREATE SCHEMA IF NOT EXISTS public;
 
--- Tabla outbox (used by OutboxRepository)
-CREATE TABLE IF NOT EXISTS pos.outbox (
-  id BIGSERIAL PRIMARY KEY,
-  aggregate_type VARCHAR(100),
-  aggregate_id VARCHAR(100),
-  type VARCHAR(200),        -- kafka topic
-  payload JSONB,
-  sent BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+-- Crear tabla de historial de Flyway manualmente para que las migraciones puedan ejecutarse
+CREATE TABLE IF NOT EXISTS public.flyway_schema_history (
+    installed_rank INT NOT NULL,
+    version VARCHAR(50),
+    description VARCHAR(200) NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    script VARCHAR(1000) NOT NULL,
+    checksum INT,
+    installed_by VARCHAR(100) NOT NULL,
+    installed_on TIMESTAMP NOT NULL DEFAULT now(),
+    execution_time INT NOT NULL,
+    success BOOLEAN NOT NULL,
+    CONSTRAINT flyway_schema_history_pk PRIMARY KEY (installed_rank)
 );
 
--- Tabla payments (used by PaymentRepository)
-CREATE TABLE IF NOT EXISTS pos.payments (
-  id VARCHAR(100) PRIMARY KEY,
-  type VARCHAR(100),
-  amount NUMERIC,           -- usa NUMERIC/DECIMAL para dinero
-  currency VARCHAR(10),
-  account_id VARCHAR(100),
-  payload JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- Tabla transfers (used by TransferRepository)
-CREATE TABLE IF NOT EXISTS pos.transfers (
-  id VARCHAR(100) PRIMARY KEY,
-  type VARCHAR(100),
-  amount NUMERIC,
-  from_account VARCHAR(100),
-  to_account VARCHAR(100),
-  payload JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- Tabla users (used por UserRepository)
-CREATE TABLE IF NOT EXISTS pos.users (
-  id UUID PRIMARY KEY,
-  email VARCHAR(255) UNIQUE,
-  hashed_password VARCHAR(255),
-  role VARCHAR(50),
-  first_name VARCHAR(100),
-  last_name VARCHAR(100),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- Tabla alerts (used por AlertsRepository)
-CREATE TABLE IF NOT EXISTS pos.alerts (
-  id BIGSERIAL PRIMARY KEY,
-  event_id VARCHAR(200),
-  alert_type VARCHAR(100),
-  source_type VARCHAR(100),
-  amount NUMERIC,
-  payload JSONB,
-  kafka_partition BIGINT,
-  kafka_offset BIGINT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- Índices sugeridos
-CREATE INDEX IF NOT EXISTS idx_outbox_sent_created_at ON pos.outbox (sent, created_at);
-CREATE INDEX IF NOT EXISTS idx_payments_account_id ON pos.payments (account_id);
-CREATE INDEX IF NOT EXISTS idx_transfers_from_to ON pos.transfers (from_account, to_account);
+CREATE INDEX IF NOT EXISTS flyway_schema_history_s_idx ON public.flyway_schema_history (success);
