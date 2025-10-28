@@ -1,4 +1,5 @@
 /.env
+db_migration_toolkit/
 /target/
 *.log
 *.pid
