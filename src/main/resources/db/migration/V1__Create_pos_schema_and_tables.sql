@@ -1,3 +1,4 @@
+SET LOCAL search_path TO pos;
 -- Baseline schema for application (idempotent)
 CREATE SCHEMA IF NOT EXISTS pos;
 

@@ -1,3 +1,4 @@
+SET LOCAL search_path TO pos;
 -- Enforce NOT NULL and DEFAULT false on pos.outbox.sent and repair existing rows
 DO $$
 BEGIN

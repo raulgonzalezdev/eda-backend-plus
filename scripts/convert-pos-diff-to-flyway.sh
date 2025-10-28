@@ -8,6 +8,14 @@ set -eu
 # - SCHEMA: esquema (por defecto pos)
 # - MIG_DEDUP_POLICY: update_existing | skip_if_exists | create_new_version (por defecto create_new_version)
 
+# Variables de conexión a la base de datos de producción
+PROD_DB_HOST="${PROD_DB_HOST:-}"
+PROD_DB_PORT="${PROD_DB_PORT:-5432}"
+PROD_DB_NAME="${PROD_DB_NAME:-sasdatqbox}"
+PROD_DB_USER="${PROD_DB_USER:-sas_user}"
+PROD_DB_PASSWORD="${PROD_DB_PASSWORD:-}"
+PROD_CONTAINER_NAME="${PROD_CONTAINER_NAME:-patroni-master}"
+
 SRC_DEV="${SRC_DEV:-db/pos}"
 SRC_PRO="${SRC_PRO:-db-pro/pos}"
 MIG_DIR="${MIG_DIR:-src/main/resources/db/migration}"
@@ -18,9 +26,27 @@ mkdir -p "$MIG_DIR"
 
 # Utils
 next_version() {
-  max="$(ls -1 "$MIG_DIR"/V*__*.sql 2>/dev/null | sed -E 's#.*/V([0-9]+)__.*#\1#' | sort -n | tail -1 || true)"
+  last_successful_version="${1:-}"
+  max_local="$(ls -1 "$MIG_DIR"/V*__*.sql 2>/dev/null | sed -E 's#.*/V([0-9]+)__.*#\1#' | sort -n | tail -1 || true)"
+  
+  if [ -n "$last_successful_version" ] && [ "$last_successful_version" -gt "${max_local:-0}" ]; then
+    max="$last_successful_version"
+  else
+    max="${max_local:-0}"
+  fi
+
   [ -z "${max:-}" ] && max=0
   echo $((max+1))
+}
+
+# Función para obtener la última versión de migración exitosa de producción
+get_last_successful_migration_from_prod() {
+  if [ -z "$PROD_DB_HOST" ] || [ -z "$PROD_DB_PASSWORD" ]; then
+    echo "[WARN] No se proporcionaron credenciales de la base de datos de producción. No se puede verificar la última migración."
+    return
+  fi
+
+  docker exec "$PROD_CONTAINER_NAME" sh -c "export PGPASSWORD=\"$PROD_DB_PASSWORD\"; psql -h \"$PROD_DB_HOST\" -p \"$PROD_DB_PORT\" -U \"$PROD_DB_USER\" -d \"$PROD_DB_NAME\" -t -c \"SELECT version FROM ${SCHEMA}.flyway_schema_history WHERE success = TRUE ORDER BY installed_rank DESC LIMIT 1;\""
 }
 
 find_existing_by_category() {
@@ -95,10 +121,7 @@ write_migration() {
   # (BEGIN;/COMMIT;/ROLLBACK;/START TRANSACTION;) pero conservar BEGIN de bloques DO $$ ... $$
   tr -d '\r' < "$content_tmp" \
     | sed -E 's/[[:space:]]+$//' \
-    | sed -E '/^[[:space:]]*BEGIN[[:space:]]*;[[:space:]]*$/d; \
-              /^[[:space:]]*COMMIT[[:space:]]*;[[:space:]]*$/d; \
-              /^[[:space:]]*ROLLBACK[[:space:]]*;[[:space:]]*$/d; \
-              /^[[:space:]]*START[[:space:]]+TRANSACTION[[:space:]]*;[[:space:]]*$/d' \
+    | grep -v -E '^[[:space:]]*(BEGIN|COMMIT|ROLLBACK|START[[:space:]]+TRANSACTION)[[:space:]]*;[[:space:]]*$' \
     >> "$final_tmp"
   existing="$(find_existing_by_category "$category")"
 
@@ -123,7 +146,8 @@ write_migration() {
           echo "[DRY-RUN] $category: se saltaría (existe $existing); política=skip_if_exists"
           ;;
         create_new_version)
-          v="$(next_version)"; target="$MIG_DIR/V${v}__${category}.sql"
+          last_successful_version=$(get_last_successful_migration_from_prod)
+          v="$(next_version "$last_successful_version")"; target="$MIG_DIR/V${v}__${category}.sql"
           echo "[DRY-RUN] $category: se crearía $target (nueva versión)"
           ;;
         *)
@@ -131,7 +155,8 @@ write_migration() {
           ;;
       esac
     else
-      v="$(next_version)"; target="$MIG_DIR/V${v}__${category}.sql"
+      last_successful_version=$(get_last_successful_migration_from_prod)
+      v="$(next_version "$last_successful_version")"; target="$MIG_DIR/V${v}__${category}.sql"
       echo "[DRY-RUN] $category: se crearía $target"
     fi
     rm -f "$final_tmp"; return 0
@@ -158,7 +183,8 @@ write_migration() {
         echo "[SKIP] $category: ya existe ($existing); política=skip_if_exists"
         ;;
       create_new_version)
-        v="$(next_version)"
+        last_successful_version=$(get_last_successful_migration_from_prod)
+        v="$(next_version "$last_successful_version")"
         target="$MIG_DIR/V${v}__${category}.sql"
         cp "$final_tmp" "$target"
         echo "[NEW] $category: creado $target"
@@ -249,9 +275,9 @@ for f in "$SRC_DEV"/TABLES/*/*.sql; do
     fi
     while IFS= read -r col; do
       [ -n "$col" ] || continue
-      def_line="$(awk -F'|' -v col="$col" '$1==col{print substr($0, index($0, "|")+1); exit}' "$dev_defs_set")"
-      [ -n "$def_line" ] || continue
-      printf 'ALTER TABLE %s.%s ADD COLUMN %s;\n' "$SCHEMA" "$tname" "$def_line" >> "$tables_tmp"
+      dev_line="$(awk -F'|' -v col="$col" '$1==col{print substr($0, index($0, "|")+1); exit}' "$dev_defs_set")"
+      [ -n "$dev_line" ] || continue
+      printf 'ALTER TABLE %s.%s ADD COLUMN %s;\n' "$SCHEMA" "$tname" "$dev_line" >> "$tables_tmp"
     done < "$missing_cols"
     rm -f "$dev_defs_set" "$pro_defs_set" "$dev_names" "$pro_names" "$missing_cols"
   fi
@@ -309,12 +335,12 @@ dev_cons_set="$(mktemp)"; pro_cons_set="$(mktemp)"
 for f in "$SRC_DEV"/TABLES/*/*.sql; do
   [ -f "$f" ] || continue
   grep -E '^ALTER TABLE' "$f" || true
-done | tr -d '\r' | sort_unique > "$dev_cons_set"
+done | tr -d '\r' | tr -s ' ' | sort_unique > "$dev_cons_set"
 if [ -d "$SRC_PRO/TABLES" ]; then
   for f in "$SRC_PRO"/TABLES/*/*.sql; do
     [ -f "$f" ] || continue
     grep -E '^ALTER TABLE' "$f" || true
-  done | tr -d '\r' | sort_unique > "$pro_cons_set"
+  done | tr -d '\r' | tr -s ' ' | sort_unique > "$pro_cons_set"
 else
   : > "$pro_cons_set"
 fi
@@ -332,12 +358,12 @@ dev_idx_set="$(mktemp)"; pro_idx_set="$(mktemp)"
 for f in "$SRC_DEV"/TABLES/*/*.sql; do
   [ -f "$f" ] || continue
   grep -E '^CREATE (UNIQUE )?INDEX' "$f" | grep -Ev '_pkey\b' || true
-done | tr -d '\r' | sort_unique > "$dev_idx_set"
+done | tr -d '\r' | tr -s ' ' | sort_unique > "$dev_idx_set"
 if [ -d "$SRC_PRO/TABLES" ]; then
   for f in "$SRC_PRO"/TABLES/*/*.sql; do
     [ -f "$f" ] || continue
     grep -E '^CREATE (UNIQUE )?INDEX' "$f" | grep -Ev '_pkey\b' || true
-  done | tr -d '\r' | sort_unique > "$pro_idx_set"
+  done | tr -d '\r' | tr -s ' ' | sort_unique > "$pro_idx_set"
 else
   : > "$pro_idx_set"
 fi
@@ -395,15 +421,34 @@ done
 # Tipos ENUM (TYPES): crear los que faltan en PRO y añadir valores nuevos
 parse_enum_from_file() {
   f="$1"
-  content="$(tr -d '\r\n' < "$f")"
-  # Buscar primera ocurrencia CREATE TYPE pos.<name> AS ENUM (...)
-  name="$(printf '%s' "$content" | sed -nE 's/.*CREATE[[:space:]]+TYPE[[:space:]]+pos\.([a-z_]+)[[:space:]]+AS[[:space:]]+ENUM[[:space:]]*\(.*/\1/p' | head -1)"
-  vals_raw="$(printf '%s' "$content" | sed -nE 's/.*CREATE[[:space:]]+TYPE[[:space:]]+pos\.[a-z_]+[[:space:]]+AS[[:space:]]+ENUM[[:space:]]*\(([^)]*)\).*/\1/p' | head -1)"
-  vals="$(printf '%s' "$vals_raw" | sed -E "s/^[[:space:]]*'//; s/'[[:space:]]*,[[:space:]]*'/\n/g; s/'[[:space:]]*$//" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' | sed '/^$/d')"
-  if [ -n "$name" ]; then
-    printf '%s\n' "$name"
-    printf '%s\n' "$vals" | sed 's/^/|/'
-  fi
+  # Usar awk para una extracción más robusta de nombre y valores de ENUM
+  awk '
+    BEGIN {
+      RS="("; ORS=""; p=0
+    }
+    /CREATE[[:space:]]+TYPE[[:space:]]+pos\.[a-zA-Z0-9_]+[[:space:]]+AS[[:space:]]+ENUM/ {
+      if (p==0) {
+        match($0, /CREATE[[:space:]]+TYPE[[:space:]]+pos\.([a-zA-Z0-9_]+)[[:space:]]+AS[[:space:]]+ENUM/);
+        name = substr($0, RSTART, RLENGTH);
+        sub(/.*CREATE[[:space:]]+TYPE[[:space:]]+pos\./, "", name);
+        sub(/[[:space:]]+AS[[:space:]]+ENUM/, "", name);
+        print name;
+        p=1;
+      }
+    }
+    p==1 {
+      sub(/[[:space:]]*\);.*/, "");
+      gsub(/'\''/, "");
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "");
+      n = split($0, values, /[[:space:]]*,[[:space:]]*/);
+      for (i = 1; i <= n; i++) {
+        if (values[i] != "") {
+          print "|" values[i];
+        }
+      }
+      p=0; # Reset for next possible ENUM in same file
+    }
+  ' "$f" | sed '/^$/d'
 }
 
 dev_types_list="$(mktemp)"; : > "$dev_types_list"
@@ -449,14 +494,14 @@ awk -F'|' '{print $1}' "$dev_map" | while read -r tnm; do
   if ! has_type "$tnm" "$pro_map"; then
     # Construir lista de valores
     vals="$(get_vals "$tnm" "$dev_map" | sed "s/^/'/; s/$/'/" | paste -sd, -)"
-    cat >> "$types_create_tmp" <<'SQL'
+    cat >> "$types_create_tmp" <<SQL
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
-    WHERE n.nspname='${SCHEMA}' AND t.typname='${tnm}'
+    WHERE n.nspname='$SCHEMA' AND t.typname='$tnm'
   ) THEN
-    EXECUTE 'CREATE TYPE ${SCHEMA}.${tnm} AS ENUM (${vals})';
+    EXECUTE 'CREATE TYPE $SCHEMA.$tnm AS ENUM ($vals)';
   END IF;
 END $$;
 SQL
@@ -475,14 +520,14 @@ awk -F'|' '{print $1}' "$dev_map" | while read -r tnm; do
   fi
   set_diff "$dev_vals_set" "$pro_vals_set" | while read -r val; do
     [ -n "$val" ] || continue
-    cat >> "$types_alter_tmp" <<'SQL'
+    cat >> "$types_alter_tmp" <<SQL
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid JOIN pg_namespace n ON n.oid=t.typnamespace
-    WHERE n.nspname='${SCHEMA}' AND t.typname='${tnm}' AND e.enumlabel='${val}'
+    WHERE n.nspname='$SCHEMA' AND t.typname='$tnm' AND e.enumlabel='$val'
   ) THEN
-    EXECUTE 'ALTER TYPE ${SCHEMA}.${tnm} ADD VALUE ''${val}''';
+    EXECUTE 'ALTER TYPE $SCHEMA.$tnm ADD VALUE ''$val''';
   END IF;
 END $$;
 SQL

@@ -34,7 +34,7 @@ SCHEMA="${SCHEMA:-pos}"
 PROD_DB_CONTAINER_NAME="${PROD_DB_CONTAINER_NAME:-patroni-master}"
 PROD_DB_NAME="${PROD_DB_NAME:-sasdatqbox}"
 PROD_DB_USER="${PROD_DB_USER:-sas_user}"
-PROD_DB_PASSWORD="${PROD_DB_PASSWORD:-ML!gsx90l02}"
+PROD_DB_PASSWORD="${PROD_DB_PASSWORD:-postgres}"
 
 OUT_DIR_IN_CONTAINER="${OUT_DIR_IN_CONTAINER:-/tmp/pg_ddl_export}"
 SRC_DIR_HOST="${SRC_DIR_HOST:-db/pos}"
@@ -68,7 +68,7 @@ echo "[1/4] Copiando export-pos-schema.sh al contenedor $DB_CONTAINER_NAME"
 docker cp scripts/export-pos-schema.sh "$DB_CONTAINER_NAME:/tmp/export-pos-schema.sh"
 
 echo "[2/4] Ejecutando exportación en contenedor via psql (schema=$SCHEMA, db=$DB_NAME)"
-docker exec \
+MSYS_NO_PATHCONV=1 docker exec \
   -e DB_NAME="$DB_NAME" \
   -e DB_USER="$DB_USER" \
   -e DB_PASSWORD="$DB_PASSWORD" \
@@ -86,7 +86,7 @@ if docker inspect "$PROD_DB_CONTAINER_NAME" >/dev/null 2>&1; then
   echo "Copiando export-pos-schema.sh al contenedor PROD $PROD_DB_CONTAINER_NAME"
   docker cp scripts/export-pos-schema.sh "$PROD_DB_CONTAINER_NAME:/tmp/export-pos-schema.sh"
   echo "Ejecutando exportación en PROD (schema=$SCHEMA, db=$PROD_DB_NAME)"
-  docker exec \
+  MSYS_NO_PATHCONV=1 docker exec \
     -e DB_NAME="$PROD_DB_NAME" \
     -e DB_USER="$PROD_DB_USER" \
     -e DB_PASSWORD="$PROD_DB_PASSWORD" \
@@ -107,38 +107,31 @@ if [ -d "$PRO_SRC_DIR_HOST" ]; then
   pro_ddl_count=$(find "$PRO_SRC_DIR_HOST" -type f -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')
 fi
 
-if [ "$MIG_FORCE_BASE" = "1" ]; then
-  echo "[4/4] Forzado a BASE: Convirtiendo DDL de DEV a migraciones base en $MIG_DIR_HOST (política=${MIG_DEDUP_POLICY_BASE:-skip_if_exists})"
-  DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY_BASE:-skip_if_exists}" SCHEMA="$SCHEMA" SRC_DIR="$SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-ddl-to-flyway.sh
-elif [ -d "$PRO_SRC_DIR_HOST" ] && [ "$pro_ddl_count" -gt 0 ]; then
-  echo "[4/4] Generando migraciones por diferencia dev vs prod en $MIG_DIR_HOST (política diff=${MIG_DEDUP_POLICY_DIFF:-create_new_version})"
-  DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY_DIFF:-${MIG_DEDUP_POLICY:-create_new_version}}" SCHEMA="$SCHEMA" SRC_DEV="$SRC_DIR_HOST" SRC_PRO="$PRO_SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-diff-to-flyway.sh
-else
-  echo "[4/4] DDL de producción vacío o no disponible. Convirtiendo DDL de DEV a migraciones base en $MIG_DIR_HOST (política=${MIG_DEDUP_POLICY_BASE:-skip_if_exists})"
-  DRY_RUN="${DRY_RUN:-0}" MIG_DEDUP_POLICY="${MIG_DEDUP_POLICY_BASE:-skip_if_exists}" SCHEMA="$SCHEMA" SRC_DIR="$SRC_DIR_HOST" MIG_DIR="$MIG_DIR_HOST" bash scripts/convert-pos-ddl-to-flyway.sh
-fi
+# Convertir DDL a migraciones Flyway (diff)
+DRY_RUN="${DRY_RUN:-0}"  # 0 para escribir, 1 para simular
 
-echo "Listando migraciones generadas:"
-ls -1 "$MIG_DIR_HOST"/V*__*.sql | sed 's#^.*/##'
+# Exportar variables de entorno para el script de conversión
+export SRC_DEV="db/pos"
+export SRC_PRO="db-pro/pos"
+export MIG_DIR="src/main/resources/db/migration-test"
+export SCHEMA="pos"
+export MIG_DEDUP_POLICY="create_new_version"
+export PROD_DB_HOST="${PROD_DB_HOST:-localhost}"
+export PROD_DB_PORT="${PROD_DB_PORT:-5432}"
+export PROD_DB_NAME="${PROD_DB_NAME:-sasdatqbox}"
+export PROD_DB_USER="${PROD_DB_USER:-sas_user}"
+export PROD_DB_PASSWORD="${PROD_DB_PASSWORD:-}"
+export PROD_CONTAINER_NAME="${PROD_CONTAINER_NAME:-patroni-master}"
 
-if [ "${DRY_RUN:-0}" = "1" ]; then
-  echo "[Dry-run] No se eliminarán migraciones vacías ni se escribirán nuevas; se muestran solo acciones previstas."
-else
-  # Limpieza: eliminar migraciones vacías (archivos 0 bytes o solo espacios)
-  echo "Limpieza de migraciones vacías (si hubiera):"
-  removed=0
-  for f in "$MIG_DIR_HOST"/V*__*.sql; do
-    [ -f "$f" ] || continue
-    if [ ! -s "$f" ] || ! grep -qE '[^[:space:]]' "$f"; then
-      rm -f "$f"
-      removed=$((removed+1))
-    fi
-  done
-  if [ "$removed" -gt 0 ]; then
-    echo "Eliminadas $removed migraciones vacías."
-  else
-    echo "No se encontraron migraciones vacías."
-  fi
+# Contenedor de desarrollo (local)
+DEV_CONTAINER_NAME="${DEV_CONTAINER_NAME:-eda-backend-plus-db-1}"
+
+echo "Convirtiendo DDL (dev vs. pro) a migraciones Flyway (en $MIG_DIR)..."
+DRY_RUN="${DRY_RUN:-0}" scripts/convert-pos-diff-to-flyway.sh
+
+# Validar migraciones generadas (si no es dry-run)
+if [ "$DRY_RUN" = "0" ]; then
+  echo "Validando migraciones generadas..."
 fi
 
 echo "Hecho."

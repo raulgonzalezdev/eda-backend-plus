@@ -74,8 +74,8 @@ for f in "$MIG_DIR"/V*__*.sql; do
   fi
 
   # CREATE TABLE sin esquema
-  awk -v s="$SCHEMA" 'BEGIN{IGNORECASE=1} /CREATE[[:space:]]+TABLE/ && $0 !~ s"\." {print NR ": " $0}' "$content_tmp" || true
-  if awk -v s="$SCHEMA" 'BEGIN{IGNORECASE=1} /CREATE[[:space:]]+TABLE/ && $0 !~ s"\." {exit 0} END{exit 1}' "$content_tmp"; then
+  awk -v s="$SCHEMA" 'BEGIN{IGNORECASE=1} /CREATE[[:space:]]+TABLE/ && $0 !~ s"[.]" {print NR ": " $0}' "$content_tmp" || true
+  if awk -v s="$SCHEMA" 'BEGIN{IGNORECASE=1} /CREATE[[:space:]]+TABLE/ && $0 !~ s"[.]" {exit 0} END{exit 1}' "$content_tmp"; then
     echo "[WARN] CREATE TABLE sin esquema explícito"
     file_warns=$((file_warns+1))
   fi
@@ -88,9 +88,9 @@ for f in "$MIG_DIR"/V*__*.sql; do
   fi
 
   # FOREIGN KEY sin REFERENCES <schema>.
-  awk -v s="$SCHEMA" 'BEGIN{IGNORECASE=1} /FOREIGN[[:space:]]+KEY/ && $0 !~ /REFERENCES[[:space:]]+"?"?"?/ {print NR ": " $0}' "$content_tmp" || true
-  if awk -v s="$SCHEMA" 'BEGIN{IGNORECASE=1} /FOREIGN[[:space:]]+KEY/ && $0 !~ /REFERENCES[[:space:]]+/ {exit 0} END{exit 1}' "$content_tmp"; then
-    echo "[WARN] FOREIGN KEY sin REFERENCES explícito"
+  awk -v s="$SCHEMA" 'BEGIN{IGNORECASE=1; re="REFERENCES[[:space:]]+\"?" s "[.]"} /FOREIGN[[:space:]]+KEY/ && $0 !~ re {print NR ": " $0}' "$content_tmp" || true
+  if awk -v s="$SCHEMA" 'BEGIN{IGNORECASE=1; re="REFERENCES[[:space:]]+\"?" s "[.]"} /FOREIGN[[:space:]]+KEY/ && $0 !~ re {exit 0} END{exit 1}' "$content_tmp"; then
+    echo "[WARN] FOREIGN KEY sin REFERENCES con esquema explícito ($SCHEMA)"
     file_warns=$((file_warns+1))
   fi
 
@@ -107,3 +107,5 @@ if [ "$EXIT_ON_WARN" = "1" ] && [ "$warn_total" -gt 0 ]; then
   exit 2
 fi
 exit 0
+
+

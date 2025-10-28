@@ -22,5 +22,6 @@ CREATE TABLE pos.subscriptions (
   trial_end timestamp with time zone
 );
 ALTER TABLE pos.subscriptions ADD CONSTRAINT subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES pos.users(id);
+ALTER TABLE pos.subscriptions ADD CONSTRAINT subscriptions_price_id_fkey FOREIGN KEY (price_id) REFERENCES pos.prices(id);
 ALTER TABLE pos.subscriptions ADD CONSTRAINT subscriptions_pkey PRIMARY KEY (id);
 CREATE UNIQUE INDEX subscriptions_pkey ON pos.subscriptions USING btree (id);
