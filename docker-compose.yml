@@ -91,6 +91,7 @@ services:
       - patroni_master_data:/var/lib/postgresql/data
       - ./patroni-config:/etc/patroni
       - ./sql/create_pos_schema_and_tables.sql:/docker-entrypoint-initdb.d/create_pos_schema_and_tables.sql
+      - ./sql/bootstrap_grants_and_publication.sql:/docker-entrypoint-initdb.d/bootstrap_grants_and_publication.sql
       - ./scripts/init-patroni-database.sh:/docker-entrypoint-initdb.d/init-patroni-database.sh
     networks:
       - kafka-network
@@ -411,7 +412,6 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
       - INSTANCE_ID=app1
-    entrypoint: ["tail", "-f", "/dev/null"]
     ports:
       - "8081:8080"
     networks:

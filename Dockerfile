@@ -7,8 +7,8 @@ RUN mvn -q -e -B -DskipTests dependency:resolve-sources dependency:resolve || \
     mvn -q -e -B -DskipTests dependency:go-offline -o || \
     mvn -q -e -B -DskipTests dependency:go-offline
 COPY src ./src
-RUN mvn -q -e -B -DskipTests package -o || \
-    mvn -q -e -B -DskipTests package
+RUN mvn -q -e -B -DskipTests clean package -o || \
+    mvn -q -e -B -DskipTests clean package
 
 # Run stage
 FROM eclipse-temurin:17-jre-jammy

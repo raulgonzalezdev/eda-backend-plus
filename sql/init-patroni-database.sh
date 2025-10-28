@@ -27,6 +27,10 @@ if [ -f "/docker-entrypoint-initdb.d/create_pos_schema_and_tables.sql" ]; then
     echo "Ejecutando script de creación de esquemas y tablas..."
     psql -U sas_user -d sasdatqbox -f /docker-entrypoint-initdb.d/create_pos_schema_and_tables.sql
     echo "Esquemas y tablas creados exitosamente."
+    
+    echo "Aplicando permisos..."
+    psql -U postgres -d sasdatqbox -f /docker-entrypoint-initdb.d/bootstrap_grants_and_publication.sql
+    echo "Permisos aplicados exitosamente."
 else
     echo "Advertencia: No se encontró el script de creación de esquemas."
 fi
