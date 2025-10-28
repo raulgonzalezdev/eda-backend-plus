@@ -70,6 +70,7 @@ services:
       - .env
     environment:
       PATRONI_NAME: patroni-master
+      PATRONI_CANDIDATE_PRIORITY: 100
       PATRONI_NAMESPACE: /db/
       PATRONI_SCOPE: postgres-cluster
       PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
@@ -113,6 +114,7 @@ services:
       - .env
     environment:
       PATRONI_NAME: patroni-replica1
+      PATRONI_CANDIDATE_PRIORITY: 50
       PATRONI_NAMESPACE: /db/
       PATRONI_SCOPE: postgres-cluster
       PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
@@ -153,6 +155,7 @@ services:
       - .env
     environment:
       PATRONI_NAME: patroni-replica2
+      PATRONI_CANDIDATE_PRIORITY: 10
       PATRONI_NAMESPACE: /db/
       PATRONI_SCOPE: postgres-cluster
       PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
@@ -411,6 +414,13 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
+      # Forzar conexiones de escritura vía HAProxy (líder)
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_FLYWAY_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
+      - SPRING_FLYWAY_USER=${DB_USER}
+      - SPRING_FLYWAY_PASSWORD=${DB_PASSWORD}
       - INSTANCE_ID=app1
     ports:
       - "8081:8080"
@@ -444,6 +454,13 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
+      # Forzar conexiones de escritura vía HAProxy (líder)
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_FLYWAY_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
+      - SPRING_FLYWAY_USER=${DB_USER}
+      - SPRING_FLYWAY_PASSWORD=${DB_PASSWORD}
       - INSTANCE_ID=app2
     ports:
       - "8082:8080"
@@ -477,6 +494,13 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
+      # Forzar conexiones de escritura vía HAProxy (líder)
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_FLYWAY_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
+      - SPRING_FLYWAY_USER=${DB_USER}
+      - SPRING_FLYWAY_PASSWORD=${DB_PASSWORD}
       - INSTANCE_ID=app3
     ports:
       - "8084:8080"

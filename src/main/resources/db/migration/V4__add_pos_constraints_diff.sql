@@ -1,41 +1,48 @@
-ALTER TABLE pos.appointment_documents ADD CONSTRAINT appointment_documents_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES pos.appointments(id);
+-- Asegurar resolución de esquema y orden correcto de constraints
+SET LOCAL search_path TO pos;
+
+-- Primero: claves primarias (PK)
 ALTER TABLE pos.appointment_documents ADD CONSTRAINT appointment_documents_pkey PRIMARY KEY (id);
+ALTER TABLE pos.appointments ADD CONSTRAINT appointments_pkey PRIMARY KEY (id);
+ALTER TABLE pos.business_locations ADD CONSTRAINT business_locations_pkey PRIMARY KEY (id);
+ALTER TABLE pos.businesses ADD CONSTRAINT businesses_pkey PRIMARY KEY (id);
+ALTER TABLE pos.conversation_participants ADD CONSTRAINT conversation_participants_pkey PRIMARY KEY (user_id, conversation_id);
+ALTER TABLE pos.conversations ADD CONSTRAINT conversations_pkey PRIMARY KEY (id);
+ALTER TABLE pos.customers ADD CONSTRAINT customers_pkey PRIMARY KEY (id);
+ALTER TABLE pos.inventory ADD CONSTRAINT inventory_pkey PRIMARY KEY (id);
+ALTER TABLE pos.messages ADD CONSTRAINT messages_pkey PRIMARY KEY (id);
+ALTER TABLE pos.patients ADD CONSTRAINT patients_pkey PRIMARY KEY (id);
+ALTER TABLE pos.prices ADD CONSTRAINT prices_pkey PRIMARY KEY (id);
+ALTER TABLE pos.products ADD CONSTRAINT products_pkey PRIMARY KEY (id);
+ALTER TABLE pos.stock_transfer_items ADD CONSTRAINT stock_transfer_items_pkey PRIMARY KEY (id);
+ALTER TABLE pos.stock_transfers ADD CONSTRAINT stock_transfers_pkey PRIMARY KEY (id);
+ALTER TABLE pos.subscription_products ADD CONSTRAINT subscription_products_pkey PRIMARY KEY (id);
+ALTER TABLE pos.subscriptions ADD CONSTRAINT subscriptions_pkey PRIMARY KEY (id);
+
+-- Únicas
+ALTER TABLE pos.products ADD CONSTRAINT products_sku_key UNIQUE (sku);
+
+-- Luego: claves foráneas (FK) que dependen de las PK anteriores
+ALTER TABLE pos.appointment_documents ADD CONSTRAINT appointment_documents_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES pos.appointments(id);
 ALTER TABLE pos.appointments ADD CONSTRAINT appointments_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES pos.users(id);
 ALTER TABLE pos.appointments ADD CONSTRAINT appointments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES pos.patients(id);
-ALTER TABLE pos.appointments ADD CONSTRAINT appointments_pkey PRIMARY KEY (id);
 ALTER TABLE pos.business_locations ADD CONSTRAINT business_locations_business_id_fkey FOREIGN KEY (business_id) REFERENCES pos.businesses(id);
-ALTER TABLE pos.business_locations ADD CONSTRAINT business_locations_pkey PRIMARY KEY (id);
 ALTER TABLE pos.businesses ADD CONSTRAINT businesses_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES pos.users(id);
-ALTER TABLE pos.businesses ADD CONSTRAINT businesses_pkey PRIMARY KEY (id);
 ALTER TABLE pos.conversation_participants ADD CONSTRAINT conversation_participants_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES pos.conversations(id);
-ALTER TABLE pos.conversation_participants ADD CONSTRAINT conversation_participants_pkey PRIMARY KEY (user_id, conversation_id);
 ALTER TABLE pos.conversation_participants ADD CONSTRAINT conversation_participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES pos.users(id);
 ALTER TABLE pos.conversations ADD CONSTRAINT conversations_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES pos.appointments(id);
-ALTER TABLE pos.conversations ADD CONSTRAINT conversations_pkey PRIMARY KEY (id);
 ALTER TABLE pos.customers ADD CONSTRAINT customers_business_id_fkey FOREIGN KEY (business_id) REFERENCES pos.businesses(id);
-ALTER TABLE pos.customers ADD CONSTRAINT customers_pkey PRIMARY KEY (id);
 ALTER TABLE pos.customers ADD CONSTRAINT customers_user_id_fkey FOREIGN KEY (user_id) REFERENCES pos.users(id);
 ALTER TABLE pos.inventory ADD CONSTRAINT inventory_location_id_fkey FOREIGN KEY (location_id) REFERENCES pos.business_locations(id);
-ALTER TABLE pos.inventory ADD CONSTRAINT inventory_pkey PRIMARY KEY (id);
 ALTER TABLE pos.inventory ADD CONSTRAINT inventory_product_id_fkey FOREIGN KEY (product_id) REFERENCES pos.products(id);
 ALTER TABLE pos.messages ADD CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES pos.conversations(id);
-ALTER TABLE pos.messages ADD CONSTRAINT messages_pkey PRIMARY KEY (id);
 ALTER TABLE pos.messages ADD CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES pos.users(id);
-ALTER TABLE pos.patients ADD CONSTRAINT patients_pkey PRIMARY KEY (id);
 ALTER TABLE pos.patients ADD CONSTRAINT patients_user_id_fkey FOREIGN KEY (user_id) REFERENCES pos.users(id);
-ALTER TABLE pos.prices ADD CONSTRAINT prices_pkey PRIMARY KEY (id);
 ALTER TABLE pos.prices ADD CONSTRAINT prices_product_id_fkey FOREIGN KEY (product_id) REFERENCES pos.subscription_products(id);
 ALTER TABLE pos.products ADD CONSTRAINT products_business_id_fkey FOREIGN KEY (business_id) REFERENCES pos.businesses(id);
-ALTER TABLE pos.products ADD CONSTRAINT products_pkey PRIMARY KEY (id);
-ALTER TABLE pos.products ADD CONSTRAINT products_sku_key UNIQUE (sku);
-ALTER TABLE pos.stock_transfer_items ADD CONSTRAINT stock_transfer_items_pkey PRIMARY KEY (id);
 ALTER TABLE pos.stock_transfer_items ADD CONSTRAINT stock_transfer_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES pos.products(id);
 ALTER TABLE pos.stock_transfer_items ADD CONSTRAINT stock_transfer_items_transfer_id_fkey FOREIGN KEY (transfer_id) REFERENCES pos.stock_transfers(id);
 ALTER TABLE pos.stock_transfers ADD CONSTRAINT stock_transfers_business_id_fkey FOREIGN KEY (business_id) REFERENCES pos.businesses(id);
 ALTER TABLE pos.stock_transfers ADD CONSTRAINT stock_transfers_from_location_id_fkey FOREIGN KEY (from_location_id) REFERENCES pos.business_locations(id);
-ALTER TABLE pos.stock_transfers ADD CONSTRAINT stock_transfers_pkey PRIMARY KEY (id);
 ALTER TABLE pos.stock_transfers ADD CONSTRAINT stock_transfers_to_location_id_fkey FOREIGN KEY (to_location_id) REFERENCES pos.business_locations(id);
-ALTER TABLE pos.subscription_products ADD CONSTRAINT subscription_products_pkey PRIMARY KEY (id);
-ALTER TABLE pos.subscriptions ADD CONSTRAINT subscriptions_pkey PRIMARY KEY (id);
-ALTER TABLE pos.subscriptions ADD CONSTRAINT subscriptions_price_id_fkey FOREIGN KEY (price_id) REFERENCES pos.prices(id);
 ALTER TABLE pos.subscriptions ADD CONSTRAINT subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES pos.users(id);

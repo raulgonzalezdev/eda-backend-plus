@@ -9,6 +9,20 @@ BEGIN
   END IF;
 END$$;
 
+-- Asegurar permisos para la tabla de historial de Flyway en schema public
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema='public' AND table_name='flyway_schema_history'
+  ) THEN
+    -- Otorgar permisos de lectura/escritura a usuario de la app
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.flyway_schema_history TO sas_user';
+    -- Opcionalmente corregir propietario si fue creado por otro rol
+    EXECUTE 'ALTER TABLE public.flyway_schema_history OWNER TO sas_user';
+  END IF;
+END$$;
+
 -- Grants de esquema y tablas/seqs existentes
 GRANT USAGE ON SCHEMA pos TO sas_user;
 GRANT CREATE ON SCHEMA pos TO sas_user;
@@ -18,6 +32,13 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA pos TO sas_user;
 -- Default privileges para objetos futuros en el esquema pos
 ALTER DEFAULT PRIVILEGES IN SCHEMA pos GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO sas_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA pos GRANT USAGE, SELECT ON SEQUENCES TO sas_user;
+
+-- Otorgar privilegio CREATE sobre la base de datos actual a sas_user
+DO $$
+DECLARE dbname text := current_database();
+BEGIN
+  EXECUTE format('GRANT CREATE ON DATABASE %I TO %I', dbname, 'sas_user');
+END$$;
 
 -- Corregir propietario de tablas existentes a sas_user (idempotente)
 DO $$

@@ -1,3 +1,6 @@
+-- Asegurar esquema correcto para creación de índices
+SET LOCAL search_path TO pos;
+
 CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON pos.alerts USING btree (created_at);
 CREATE INDEX IF NOT EXISTS idx_alerts_event_id ON pos.alerts USING btree (event_id);
 CREATE INDEX IF NOT EXISTS idx_payments_created_at ON pos.payments USING btree (created_at);

@@ -1,3 +1,7 @@
+-- Nota: Flyway ejecuta cada migración en una transacción (no uses BEGIN/COMMIT aquí)
+-- Forzar resolución de tipos dentro del esquema 'pos'
+SET LOCAL search_path TO pos;
+
 CREATE TABLE IF NOT EXISTS pos.appointment_documents (
   id uuid NOT NULL,
   appointment_id uuid NOT NULL,

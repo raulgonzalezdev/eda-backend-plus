@@ -103,6 +103,7 @@ postgresql:
     unix_socket_directories: /var/run/postgresql
 
 tags:
+  candidate_priority: ${PATRONI_CANDIDATE_PRIORITY:-0}
   nofailover: false
   noloadbalance: false
   clonefrom: false
