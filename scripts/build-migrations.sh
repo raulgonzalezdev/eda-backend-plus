@@ -113,7 +113,7 @@ DRY_RUN="${DRY_RUN:-0}"  # 0 para escribir, 1 para simular
 # Exportar variables de entorno para el script de conversión
 export SRC_DEV="db/pos"
 export SRC_PRO="db-pro/pos"
-export MIG_DIR="src/main/resources/db/migration-test"
+export MIG_DIR="$MIG_DIR_HOST"
 export SCHEMA="pos"
 export MIG_DEDUP_POLICY="create_new_version"
 export PROD_DB_HOST="${PROD_DB_HOST:-localhost}"
