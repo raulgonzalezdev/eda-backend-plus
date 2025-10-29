@@ -4,3 +4,4 @@ db_migration_toolkit/
 *.log
 *.pid
 .DS_Store
+StudioFlySql/
