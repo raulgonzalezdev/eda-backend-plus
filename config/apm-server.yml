@@ -1,0 +1,16 @@
+apm-server:
+  host: "0.0.0.0:8200"
+  # Habilita ingestión OTLP (traces/metrics/logs) desde agentes OTel
+  otlp:
+    enabled: true
+
+queue: {}
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  # En dev deshabilitamos seguridad en Elasticsearch, así no requiere credenciales
+  protocol: "http"
+
+logging:
+  level: info
+  selectors: ["*"]

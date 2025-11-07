@@ -393,6 +393,68 @@ services:
       - kafka-network
     restart: unless-stopped
 
+  # ===== OBSERVABILITY: ELASTICSEARCH + KIBANA + APM SERVER =====
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    networks:
+      - kafka-network
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.14.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - kafka-network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.14.0
+    container_name: apm-server
+    ports:
+      - "8200:8200"
+    networks:
+      - kafka-network
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./config/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+    restart: unless-stopped
+
+  # ===== UTILITY: FLYWAY CLI PARA REPAIR/INFO/MIGRATE =====
+  flyway-cli:
+    image: flyway/flyway:10.10.0
+    container_name: flyway-cli
+    depends_on:
+      - haproxy
+    environment:
+      - FLYWAY_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
+      - FLYWAY_USER=${DB_USER}
+      - FLYWAY_PASSWORD=${DB_PASSWORD}
+      - FLYWAY_SCHEMAS=pos
+      - FLYWAY_BASELINE_ON_MIGRATE=true
+    volumes:
+      - ./src/main/resources/db/migration:/flyway/sql:ro
+    networks:
+      - kafka-network
+    # Mantener el contenedor listo para exec/commands
+    entrypoint: ["sh","-c","tail -f /dev/null"]
+    restart: unless-stopped
+
   # ===== EDA BACKEND APPLICATIONS =====
   app1:
     build: .
@@ -408,12 +470,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
       - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
-      - DB_HOST=patroni-master
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
+
       # Forzar conexiones de escritura vía HAProxy (líder)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
@@ -421,18 +478,34 @@ services:
       - SPRING_FLYWAY_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
       - SPRING_FLYWAY_USER=${DB_USER}
       - SPRING_FLYWAY_PASSWORD=${DB_PASSWORD}
+      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
+      - SPRING_FLYWAY_VALIDATE_ON_MIGRATE=false
       - INSTANCE_ID=app1
+      # OpenTelemetry (dev): enviar OTLP al APM Server y usar Java agent
+      - JAVA_TOOL_OPTIONS=-javaagent:/opt/otel/opentelemetry-javaagent.jar
+      - OTEL_SERVICE_NAME=eda-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://apm-server:8200
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=0.01
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=${INSTANCE_ID}
+      - SERVER_ADDRESS=0.0.0.0
+      - SERVER_ADDRESS=0.0.0.0
     ports:
       - "8081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"] # o wget -q --spider
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # Sin volúmenes locales: el agent está dentro de la imagen
     networks:
       - kafka-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+
 
   app2:
     build: .
@@ -448,12 +521,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
       - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
-      - DB_HOST=patroni-master
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
+
       # Forzar conexiones de escritura vía HAProxy (líder)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
@@ -461,18 +529,33 @@ services:
       - SPRING_FLYWAY_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
       - SPRING_FLYWAY_USER=${DB_USER}
       - SPRING_FLYWAY_PASSWORD=${DB_PASSWORD}
+      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
+      - SPRING_FLYWAY_VALIDATE_ON_MIGRATE=false
       - INSTANCE_ID=app2
+      # OpenTelemetry (dev): enviar OTLP al APM Server y usar Java agent
+      - JAVA_TOOL_OPTIONS=-javaagent:/opt/otel/opentelemetry-javaagent.jar
+      - OTEL_SERVICE_NAME=eda-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://apm-server:8200
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=0.01
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=${INSTANCE_ID}
+      - SERVER_ADDRESS=0.0.0.0
     ports:
       - "8082:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"] # o wget -q --spider
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # Sin volúmenes locales: el agent está dentro de la imagen
     networks:
       - kafka-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+
 
   app3:
     build: .
@@ -488,12 +571,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
       - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
-      - DB_HOST=patroni-master
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@patroni-master:5432/${DB_NAME}?sslmode=disable
+
       # Forzar conexiones de escritura vía HAProxy (líder)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
@@ -501,18 +579,33 @@ services:
       - SPRING_FLYWAY_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
       - SPRING_FLYWAY_USER=${DB_USER}
       - SPRING_FLYWAY_PASSWORD=${DB_PASSWORD}
+      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
+      - SPRING_FLYWAY_VALIDATE_ON_MIGRATE=false
       - INSTANCE_ID=app3
+      # OpenTelemetry (dev): enviar OTLP al APM Server y usar Java agent
+      - JAVA_TOOL_OPTIONS=-javaagent:/opt/otel/opentelemetry-javaagent.jar
+      - OTEL_SERVICE_NAME=eda-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://apm-server:8200
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=0.01
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=${INSTANCE_ID}
+      - SERVER_ADDRESS=0.0.0.0
     ports:
       - "8084:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"] # o wget -q --spider
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # Sin volúmenes locales: el agent está dentro de la imagen
     networks:
       - kafka-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+
 
 volumes:
   etcd1_data:
@@ -524,6 +617,7 @@ volumes:
   kafka_data_1:
   kafka_data_2:
   kafka_data_3:
+  es-data:
 
 networks:
   kafka-network:

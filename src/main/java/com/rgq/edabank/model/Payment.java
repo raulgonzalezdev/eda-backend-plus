@@ -1,8 +1,15 @@
 package com.rgq.edabank.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
+@Entity
+@Table(name = "payments")
 public class Payment {
+
+    @Id
     private String id;
     private String type;
     private double amount;

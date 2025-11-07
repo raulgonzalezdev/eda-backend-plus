@@ -15,9 +15,14 @@ FROM eclipse-temurin:17-jre-jammy
 ENV JAVA_OPTS="-Xms256m -Xmx512m"
 WORKDIR /app
 
-# Instalar curl para health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Instalar curl y preparar OpenTelemetry Java agent dentro de la imagen
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* \
+  && mkdir -p /opt/otel \
+  && curl -fsSL -o /opt/otel/opentelemetry-javaagent.jar \
+     https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.4.0/opentelemetry-javaagent.jar
 
 COPY --from=build /workspace/target/eda-backend-0.1.0.jar app.jar
 EXPOSE 8080
-ENTRYPOINT [ "sh", "-c", "java $JAVA_OPTS -jar app.jar" ]
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]

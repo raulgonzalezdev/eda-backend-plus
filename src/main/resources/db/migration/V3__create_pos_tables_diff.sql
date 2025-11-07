@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS pos.patients (
 );
 
 CREATE TABLE IF NOT EXISTS pos.prices (
-  id character varying NOT NULL,
+  id character varying(255) NOT NULL PRIMARY KEY,
   product_id character varying,
   active boolean,
   description character varying,
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS pos.stock_transfers (
 );
 
 CREATE TABLE IF NOT EXISTS pos.subscription_products (
-  id character varying NOT NULL,
+  id character varying(255) NOT NULL PRIMARY KEY,
   active boolean,
   name character varying,
   description character varying,
@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS pos.subscriptions (
   user_id uuid NOT NULL,
   status subscriptionstatus,
   metadata json,
-  price_id character varying,
+  price_id character varying(255),
   quantity integer,
   cancel_at_period_end boolean,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
