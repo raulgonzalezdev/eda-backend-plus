@@ -1,6 +1,6 @@
-package com.rgq.edabank.repositories;
+package com.rgq.edabank.repository;
 
-import com.rgq.edabank.models.Message;
+import com.rgq.edabank.model.Message;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

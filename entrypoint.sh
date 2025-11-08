@@ -1,11 +1,8 @@
 #!/bin/sh
+set -x
 
-# Esperar a que la base de datos esté lista
-until nc -z -v -w30 haproxy 5000
-do
-  echo "Esperando a que la base de datos esté disponible..."
-  sleep 1
-done
+# Create a logs directory if it doesn't exist
+mkdir -p /app/logs
 
-# Ejecutar la aplicación
-exec java -jar app.jar
+# Start the application
+exec java -Xms256m -Xmx512m -jar /app/app.jar

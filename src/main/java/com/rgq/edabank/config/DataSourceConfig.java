@@ -44,6 +44,7 @@ public class DataSourceConfig {
         targetDataSources.put("primary", primaryDataSource());
         targetDataSources.put("replica", replicaDataSource());
         routingDataSource.setTargetDataSources(targetDataSources);
+        routingDataSource.setDefaultTargetDataSource(primaryDataSource());
         return routingDataSource;
     }
 }

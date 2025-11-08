@@ -1,4 +1,4 @@
-package com.rgq.edabank.models;
+package com.rgq.edabank.model;
 
 import lombok.Builder;
 import lombok.Getter;

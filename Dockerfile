@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl netcat-ope
   && curl -fsSL -o /opt/otel/opentelemetry-javaagent.jar \
      https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.4.0/opentelemetry-javaagent.jar
 
+COPY config ./config
 COPY --from=build /workspace/target/eda-backend-0.1.0.jar app.jar
 EXPOSE 8080
 COPY entrypoint.sh .

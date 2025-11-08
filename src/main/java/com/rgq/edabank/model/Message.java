@@ -1,4 +1,4 @@
-package com.rgq.edabank.models;
+package com.rgq.edabank.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

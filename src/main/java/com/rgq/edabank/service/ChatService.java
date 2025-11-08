@@ -1,12 +1,12 @@
-package com.rgq.edabank.services;
+package com.rgq.edabank.service;
 
 import com.rgq.edabank.dto.ws.InboundChatMessageDto;
 import com.rgq.edabank.dto.ws.OutboundChatMessageDto;
-import com.rgq.edabank.models.ChatMessage;
-import com.rgq.edabank.models.Conversation;
-import com.rgq.edabank.models.Message;
-import com.rgq.edabank.repositories.ConversationRepository;
-import com.rgq.edabank.repositories.MessageRepository;
+import com.rgq.edabank.model.ChatMessage;
+import com.rgq.edabank.model.Conversation;
+import com.rgq.edabank.model.Message;
+import com.rgq.edabank.repository.ConversationRepository;
+import com.rgq.edabank.repository.MessageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;

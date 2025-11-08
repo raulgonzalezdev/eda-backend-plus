@@ -1,10 +1,10 @@
-package com.rgq.edabank.controllers.rest;
+package com.rgq.edabank.controller;
 
 import com.rgq.edabank.dto.ConversationDto;
 import com.rgq.edabank.dto.MessageDto;
 import com.rgq.edabank.mappers.ChatMapper;
-import com.rgq.edabank.repositories.ConversationRepository;
-import com.rgq.edabank.repositories.MessageRepository;
+import com.rgq.edabank.repository.ConversationRepository;
+import com.rgq.edabank.repository.MessageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

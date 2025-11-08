@@ -2,8 +2,8 @@ package com.rgq.edabank.mappers;
 
 import com.rgq.edabank.dto.ConversationDto;
 import com.rgq.edabank.dto.MessageDto;
-import com.rgq.edabank.models.Conversation;
-import com.rgq.edabank.models.Message;
+import com.rgq.edabank.model.Conversation;
+import com.rgq.edabank.model.Message;
 
 import java.util.List;
 import java.util.stream.Collectors;
