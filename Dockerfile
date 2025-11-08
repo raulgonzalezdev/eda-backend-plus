@@ -25,5 +25,5 @@ COPY config ./config
 COPY --from=build /workspace/target/eda-backend-0.1.0.jar app.jar
 EXPOSE 8080
 COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]

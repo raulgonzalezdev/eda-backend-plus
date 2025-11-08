@@ -2,16 +2,24 @@
   "name": "outbox-connector",
   "config": {
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-    "database.hostname": "patroni-master",
-    "database.port": "5432",
-    "database.user": "sas_user",
-    "database.password": "ML!gsx90l02",
+    "database.hostname": "haproxy",
+    "database.port": "5000",
+    "database.user": "replicator",
+    "database.password": "repl_pass_2024",
     "database.dbname": "sasdatqbox",
     "database.server.name": "dbz-outbox",
     "table.include.list": "pos.outbox",
     "topic.prefix": "dbz-outbox",
     "plugin.name": "pgoutput",
     "publication.autocreate.mode": "disabled",
-    "publication.name": "dbz_outbox_pub"
+    "publication.name": "dbz_outbox_pub",
+    "slot.name": "debezium_outbox_slot",
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.route.by.field": "type",
+    "transforms.outbox.route.topic.replacement": "${routedTopic}",
+    "transforms.outbox.table.field.event.key": "aggregate_id",
+    "transforms.outbox.table.field.event.payload": "payload",
+    "transforms.outbox.additional.fields": "eventType:type,aggregateId:aggregate_id"
   }
 }

@@ -3,19 +3,26 @@ package com.rgq.edabank.model;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Column;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "transfers")
+@Table(name = "transfers", schema = "pos")
 public class Transfer {
 
     @Id
     private String id;
     private String type;
     private double amount;
+    @Column(name = "from_account")
     private String fromAccount;
+    @Column(name = "to_account")
     private String toAccount;
+    @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
     public String getId() { return id; }

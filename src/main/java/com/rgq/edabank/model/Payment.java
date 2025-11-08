@@ -3,10 +3,13 @@ package com.rgq.edabank.model;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Column;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "payments")
+@Table(name = "payments", schema = "pos")
 public class Payment {
 
     @Id
@@ -14,8 +17,11 @@ public class Payment {
     private String type;
     private double amount;
     private String currency;
+    @Column(name = "account_id")
     private String accountId;
+    @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
     public String getId() { return id; }

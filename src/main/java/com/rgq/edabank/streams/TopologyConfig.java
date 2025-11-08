@@ -22,12 +22,12 @@ public class TopologyConfig {
   @Value("${app.alerts.threshold:10000}")
   private double threshold;
 
+
   @Bean
   public KStream<String, String> kstream(StreamsBuilder streamsBuilder) {
     Serde<String> stringSerde = Serdes.String();
     KStream<String, String> payments = streamsBuilder.stream("payments.events", Consumed.with(stringSerde, stringSerde));
     KStream<String, String> transfers = streamsBuilder.stream("transfers.events", Consumed.with(stringSerde, stringSerde));
-
     KStream<String, String> merged = payments.merge(transfers).peek((k, v) -> log.debug("evt key={} payload={}", k, v));
 
     KStream<String, String> alerts = merged.filter((k, v) -> {
