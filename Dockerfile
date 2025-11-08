@@ -16,7 +16,7 @@ ENV JAVA_OPTS="-Xms256m -Xmx512m"
 WORKDIR /app
 
 # Instalar curl y preparar OpenTelemetry Java agent dentro de la imagen
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y --no-install-recommends curl netcat-openbsd && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /opt/otel \
   && curl -fsSL -o /opt/otel/opentelemetry-javaagent.jar \
      https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.4.0/opentelemetry-javaagent.jar

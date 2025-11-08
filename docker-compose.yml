@@ -467,7 +467,7 @@ services:
     env_file:
       - .env
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=10000
 
@@ -490,7 +490,7 @@ services:
       - OTEL_LOGS_EXPORTER=otlp
       - OTEL_TRACES_SAMPLER=parentbased_traceidratio
       - OTEL_TRACES_SAMPLER_ARG=0.01
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=${INSTANCE_ID}
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app1
       - SERVER_ADDRESS=0.0.0.0
       - SERVER_ADDRESS=0.0.0.0
     ports:
@@ -541,7 +541,7 @@ services:
       - OTEL_LOGS_EXPORTER=otlp
       - OTEL_TRACES_SAMPLER=parentbased_traceidratio
       - OTEL_TRACES_SAMPLER_ARG=0.01
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=${INSTANCE_ID}
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app2
       - SERVER_ADDRESS=0.0.0.0
     ports:
       - "8082:8080"
@@ -591,7 +591,7 @@ services:
       - OTEL_LOGS_EXPORTER=otlp
       - OTEL_TRACES_SAMPLER=parentbased_traceidratio
       - OTEL_TRACES_SAMPLER_ARG=0.01
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=${INSTANCE_ID}
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app3
       - SERVER_ADDRESS=0.0.0.0
     ports:
       - "8084:8080"

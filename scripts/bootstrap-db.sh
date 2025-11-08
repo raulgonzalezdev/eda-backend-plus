@@ -24,6 +24,21 @@ wait_for_pg() {
   return 1
 }
 
+wait_for_writable_pg() {
+  local host="$1"; local port="$2"; local user="$3"; local db="$4"; local tries="${5:-30}"
+  echo "[db-bootstrap] Esperando conexión writable en ${host}:${port} para DB ${db}..."
+  for i in $(seq 1 "$tries"); do
+    if psql -h "$host" -p "$port" -U "$user" -d "$db" -tAc "CREATE TEMP TABLE test_writable (id int); DROP TABLE test_writable;" >/dev/null 2>&1; then
+      echo "[db-bootstrap] Conexión writable confirmada en ${host}:${port}."
+      return 0
+    fi
+    echo "[db-bootstrap] Intento $i: Conexión no writable aún, reintentando..."
+    sleep 5
+  done
+  echo "[db-bootstrap] ERROR: No se pudo obtener conexión writable después de $tries intentos." >&2
+  return 1
+}
+
 # Intento 1: vía HAProxy (master)
 if ! wait_for_pg "$PGHOST" "$PGPORT" "$PGUSER" 20; then
   echo "[db-bootstrap] HAProxy no respondió a tiempo; intentando directo al master Patroni..."
@@ -32,6 +47,11 @@ if ! wait_for_pg "$PGHOST" "$PGPORT" "$PGUSER" 20; then
     echo "[db-bootstrap] ERROR: No se pudo alcanzar Postgres ni por HAProxy ni directo al master." >&2
     exit 1
   fi
+fi
+
+# Esperar hasta que la conexión sea writable (para evitar errores de read-only transaction)
+if ! wait_for_writable_pg "$PGHOST" "$PGPORT" "$PGUSER" "postgres" 30; then
+  exit 1
 fi
 
 echo "[db-bootstrap] Asegurando base de datos ${APP_DB_NAME}..."

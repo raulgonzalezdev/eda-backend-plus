@@ -1,2 +1,11 @@
 #!/bin/sh
-exec java $JAVA_OPTS $JAVA_TOOL_OPTIONS -jar app.jar
+
+# Esperar a que la base de datos esté lista
+until nc -z -v -w30 haproxy 5000
+do
+  echo "Esperando a que la base de datos esté disponible..."
+  sleep 1
+done
+
+# Ejecutar la aplicación
+exec java -jar app.jar
