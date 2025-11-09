@@ -8,8 +8,9 @@ queue: {}
 
 output.elasticsearch:
   hosts: ["http://elasticsearch:9200"]
-  # En dev deshabilitamos seguridad en Elasticsearch, así no requiere credenciales
   protocol: "http"
+  username: "apm_writer"
+  password: "changemeAPMWRITER"
 
 logging:
   level: info

@@ -1,7 +1,9 @@
 Param(
   [int]$Count = 15,
   [int]$DelayMs = 300,
-  [string]$BaseUrl = 'http://localhost:8080'
+  [string]$BaseUrl = 'http://localhost:8080',
+  [int]$AlertsTimeoutMs = 5000,
+  [int]$DbWaitSeconds = 10
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,20 +40,22 @@ try { Invoke-WebRequest -Uri "$BaseUrl/db/ping" -UseBasicParsing -Headers $heade
 # 4) Generar tráfico: payments y transfers
 Write-Host "[OBS] Generando $Count pagos y $Count transferencias" -ForegroundColor Yellow
 for ($i=0; $i -lt $Count; $i++) {
-  $pid = [guid]::NewGuid().ToString()
-  $tid = [guid]::NewGuid().ToString()
-  Call-Json -Uri "$BaseUrl/events/payments" -Headers $headers -Body @{ id=$pid; amount=15000; type='payment'; currency='USD'; accountId='acc-obs' } | Out-Null
+  $paymentId = [guid]::NewGuid().ToString()
+  $transferId = [guid]::NewGuid().ToString()
+  Call-Json -Uri "$BaseUrl/events/payments" -Headers $headers -Body @{ id=$paymentId; amount=15000; type='payment'; currency='USD'; accountId='acc-obs' } | Out-Null
   Start-Sleep -Milliseconds $DelayMs
-  Call-Json -Uri "$BaseUrl/events/transfers" -Headers $headers -Body @{ id=$tid; amount=16000; type='transfer'; fromAccount='acc-a'; toAccount='acc-b' } | Out-Null
+  Call-Json -Uri "$BaseUrl/events/transfers" -Headers $headers -Body @{ id=$transferId; amount=16000; type='transfer'; fromAccount='acc-a'; toAccount='acc-b' } | Out-Null
   Start-Sleep -Milliseconds $DelayMs
 }
 Write-Host "[OBS] Tráfico generado" -ForegroundColor Green
 
 # 5) Consultar alertas (Kafka Streams + AlertsConsumer)
-Write-Host "[OBS] Consultando alertas (Kafka)" -ForegroundColor Yellow
-$alerts = (Invoke-WebRequest -Uri "$BaseUrl/alerts?timeoutMs=5000" -UseBasicParsing -Headers $headers).Content
+Write-Host "[OBS] Consultando alertas (Kafka) (timeoutMs=$AlertsTimeoutMs)" -ForegroundColor Yellow
+$alerts = (Invoke-WebRequest -Uri "$BaseUrl/alerts?timeoutMs=$AlertsTimeoutMs" -UseBasicParsing -Headers $headers).Content
 Write-Host "[OBS] alerts? => $alerts" -ForegroundColor Gray
 
+Write-Host "[OBS] Esperando $DbWaitSeconds s antes de consultar alertas en DB" -ForegroundColor Yellow
+Start-Sleep -Seconds $DbWaitSeconds
 Write-Host "[OBS] Consultando alertas en DB" -ForegroundColor Yellow
 $alertsDb = (Invoke-WebRequest -Uri "$BaseUrl/alerts-db" -UseBasicParsing -Headers $headers).Content
 Write-Host "[OBS] alerts-db => $alertsDb" -ForegroundColor Gray

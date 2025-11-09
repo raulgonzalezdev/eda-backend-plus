@@ -400,7 +400,9 @@ services:
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
-      - xpack.security.enabled=false
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=changeme
+      - xpack.apm_data.enabled=true
     ports:
       - "9200:9200"
     networks:
@@ -414,6 +416,9 @@ services:
     container_name: kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=changemeKBN
+      - xpack.security.enabled=true
     ports:
       - "5601:5601"
     networks:

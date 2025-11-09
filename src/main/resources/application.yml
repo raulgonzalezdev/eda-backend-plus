@@ -10,6 +10,13 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+      group-id: alerts-persist-group
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     streams:
       application-id: ${KAFKA_STREAMS_APP_ID:eda-alerts-app}
       bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
