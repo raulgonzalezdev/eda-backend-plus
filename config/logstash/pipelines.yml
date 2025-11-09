@@ -1,2 +1,4 @@
 - pipeline.id: alerts_enriched
   path.config: "/usr/share/logstash/pipeline/alerts_enriched.conf"
+- pipeline.id: backend_events
+  path.config: "/usr/share/logstash/pipeline/backend_events.conf"

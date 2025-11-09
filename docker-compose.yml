@@ -327,21 +327,22 @@ services:
     networks:
       - kafka-network
     command: >
-      bash -c "
-        echo 'Waiting for Kafka cluster to be ready...'
-        sleep 90
-        echo 'Creating Kafka topics...'
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 1 || true
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 1 || true
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 1 || true
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_config --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_offsets --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_status --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
-        echo 'Topics created successfully!'
-        echo 'Listing all topics:'
-        kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --list || true
-        echo 'Topic creation completed. Container will exit.'
-      "
+        bash -c "
+          echo 'Waiting for Kafka cluster to be ready...'
+          sleep 90
+          echo 'Creating Kafka topics...'
+          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 1 || true
+          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 1 || true
+          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 1 || true
+          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic backend.events --partitions 1 --replication-factor 1 || true
+          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_config --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
+          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_offsets --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
+          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_status --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
+          echo 'Topics created successfully!'
+          echo 'Listing all topics:'
+          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --list || true
+          echo 'Topic creation completed. Container will exit.'
+        "
     restart: "no"
 
   # ===== DEBEZIUM PARA CDC =====
@@ -496,7 +497,7 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - JWT_SECRET=${JWT_SECRET}
-      - ALERT_THRESHOLD=10000
+      - ALERT_THRESHOLD=100
 
       # Forzar conexiones de escritura vía HAProxy (líder)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
@@ -509,8 +510,18 @@ services:
       - SPRING_FLYWAY_VALIDATE_ON_MIGRATE=false
       - INSTANCE_ID=app1
       - SERVER_ADDRESS=0.0.0.0
-  
-      - SERVER_ADDRESS=0.0.0.0
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=/app/config/application-docker.yml
+      # OpenTelemetry (dev): enviar OTLP al APM Server y usar Java agent
+      - JAVA_TOOL_OPTIONS=-javaagent:/opt/otel/opentelemetry-javaagent.jar
+      - OTEL_SERVICE_NAME=eda-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://apm-server:8200
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_TRACES_SAMPLER=always_on
+      - OTEL_TRACES_SAMPLER_ARG=1
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app1
     ports:
       - "8081:8080"
     healthcheck:
@@ -542,7 +553,7 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
       - JWT_SECRET=${JWT_SECRET}
-      - ALERT_THRESHOLD=10000
+      - ALERT_THRESHOLD=100
 
       # Forzar conexiones de escritura vía HAProxy (líder)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
@@ -562,10 +573,11 @@ services:
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
       - OTEL_TRACES_SAMPLER=parentbased_traceidratio
-      - OTEL_TRACES_SAMPLER_ARG=0.01
+      - OTEL_TRACES_SAMPLER_ARG=1
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app2
       - SERVER_ADDRESS=0.0.0.0
-      - SERVER_ADDRESS=0.0.0.0
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=/app/config/application-docker.yml
     ports:
       - "8082:8080"
     healthcheck:
@@ -597,7 +609,7 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
       - JWT_SECRET=${JWT_SECRET}
-      - ALERT_THRESHOLD=10000
+      - ALERT_THRESHOLD=100
 
       # Forzar conexiones de escritura vía HAProxy (líder)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
@@ -617,10 +629,11 @@ services:
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
       - OTEL_TRACES_SAMPLER=parentbased_traceidratio
-      - OTEL_TRACES_SAMPLER_ARG=0.01
+      - OTEL_TRACES_SAMPLER_ARG=1
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app3
       - SERVER_ADDRESS=0.0.0.0
-      - SERVER_ADDRESS=0.0.0.0
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=/app/config/application-docker.yml
     ports:
       - "8084:8080"
     healthcheck:
