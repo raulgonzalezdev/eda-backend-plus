@@ -17,34 +17,34 @@ Este documento describe la arquitectura objetivo basada en microservicios constr
 flowchart LR
   %% Gateway
   subgraph Gateway
-    GW[gateway-service\n(Spring Cloud Gateway)]
+    GW["gateway-service<br/>(Spring Cloud Gateway)"]
   end
 
   %% Domain Services
-  subgraph Services[Domain Services]
-    PAY[payments-service]\n
-    TRN[transfers-service]
+  subgraph Services["Domain Services"]
+    PAY["payments-service"]
+    TRN["transfers-service"]
   end
 
   %% Kafka Cluster
-  subgraph KafkaCluster[Kafka Cluster]
-    KAFKA[(Kafka)]
+  subgraph KafkaCluster["Kafka Cluster"]
+    KAFKA[("Kafka")]
   end
 
   %% Streaming
   subgraph Streaming
-    ALS[alerts-service\n(Kafka Streams)]
+    ALS["alerts-service<br/>(Kafka Streams)"]
   end
 
   %% Observability
   subgraph Observability
-    APM[apm-server]
-    ES[(Elasticsearch)]
-    KB[Kibana]
+    APM["apm-server"]
+    ES[("Elasticsearch")]
+    KB["Kibana"]
   end
 
   %% Optional Monolith via NGINX
-  NGX[nginx-load-balancer]\n
+  NGX["nginx-load-balancer"]
 
   %% Routing from Gateway
   GW -- "/api/payments" --> PAY
