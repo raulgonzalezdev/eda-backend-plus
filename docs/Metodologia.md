@@ -1,5 +1,17 @@
 # `eda-backend-plus`: Aplicación de Ejemplo para Procesamiento de Eventos en Tiempo Real
 
+## Navegación
+- Inicio: [README](../README.md)
+- Metodología: [Metodologia.md](Metodologia.md)
+- Observabilidad (APM/OTel): [observability-overview.md](observability-overview.md)
+- Resiliencia BD (Patroni + HAProxy): [database-resilience.md](database-resilience.md)
+- Balanceador NGINX: [README-LoadBalancer.md](README-LoadBalancer.md)
+- Guía de entrevista: [guia-entrevista-backend.md](guia-entrevista-backend.md)
+- Contribución (ES): [CONTRIBUTING.es.md](CONTRIBUTING.es.md)
+- Contribución (EN): [CONTRIBUTING.md](CONTRIBUTING.md)
+- Esquema POS y DDL: [pos_schema_instructions.md](pos_schema_instructions.md)
+- OpenAPI: [../specs/openapi.yaml](../specs/openapi.yaml) · AsyncAPI: [../specs/asyncapi.yaml](../specs/asyncapi.yaml)
+
 Este proyecto es una aplicación backend construida con Spring Boot y Kafka, diseñada para demostrar una arquitectura orientada a eventos (EDA) robusta y escalable. Es un excelente caso de estudio para una entrevista técnica para un puesto de Back-end Engineer centrado en el procesamiento de datos en tiempo real.
 
 A continuación, se desglosan los aspectos más importantes de la aplicación, junto con un cuestionario técnico que podrías encontrar en una entrevista.
@@ -128,5 +140,7 @@ Con `update`, Hibernate comparará el esquema con las entidades y creará o modi
 **R:** Así como `openapi.yaml` define el contrato para nuestra API REST (endpoints, métodos, parámetros, respuestas), `asyncapi.yaml` define el contrato para nuestra API asíncrona. Documenta los canales (topics de Kafka), los mensajes que se publican o consumen, y el formato (payload) de esos mensajes. Esto es crucial para que los equipos que desarrollan otros servicios sepan cómo interactuar con nuestros eventos sin tener que mirar el código fuente.
 
 ---
+
+Navegación rápida: [Volver al README](../README.md) · [Índice de docs](index.md) · [Mapa del proyecto](project-map.md) · [Guía de entrevista](guia-entrevista-backend.md) · [Observabilidad](observability-overview.md)
 
 

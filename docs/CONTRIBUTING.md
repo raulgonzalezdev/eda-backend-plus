@@ -1,5 +1,17 @@
 # Contributing to the EDA Backend Plus
 
+## Navigation / Navegación
+- Home / Inicio: [README](../README.md)
+- Methodology / Metodología: [Metodologia.md](Metodologia.md)
+- Observability (APM/OTel): [observability-overview.md](observability-overview.md)
+- DB Resilience (Patroni + HAProxy): [database-resilience.md](database-resilience.md)
+- NGINX Load Balancer: [README-LoadBalancer.md](README-LoadBalancer.md)
+- Interview Guide / Guía de entrevista: [guia-entrevista-backend.md](guia-entrevista-backend.md)
+- Contributing (ES): [CONTRIBUTING.es.md](CONTRIBUTING.es.md)
+- Contributing (EN): [CONTRIBUTING.md](CONTRIBUTING.md)
+- POS Schema and DDL / Esquema POS y DDL: [pos_schema_instructions.md](pos_schema_instructions.md)
+- OpenAPI: [../specs/openapi.yaml](../specs/openapi.yaml) · AsyncAPI: [../specs/asyncapi.yaml](../specs/asyncapi.yaml)
+
 First off, thank you for considering contributing to this project! It's people like you that make this project such a great tool.
 
 This document provides a guide for developers to contribute to this project. It outlines the architectural pattern, the structure of a feature, and the process for creating a new endpoint.
@@ -286,3 +298,7 @@ To run the tests, you can use the following command:
 ```
 
 This will run all the tests in the project.
+
+---
+
+Navigation / Navegación: [Back to README](../README.md) · [Docs index](index.md) · [Project map](project-map.md) · [Interview Guide](guia-entrevista-backend.md) · [Observability](observability-overview.md)

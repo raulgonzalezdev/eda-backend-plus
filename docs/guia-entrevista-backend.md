@@ -1,5 +1,17 @@
 # Guía de Entrevista (Backend Engineer) – eda-backend-plus
 
+## Navegación
+- Inicio: [README](../README.md)
+- Metodología: [Metodologia.md](Metodologia.md)
+- Observabilidad (APM/OTel): [observability-overview.md](observability-overview.md)
+- Resiliencia BD (Patroni + HAProxy): [database-resilience.md](database-resilience.md)
+- Balanceador NGINX: [README-LoadBalancer.md](README-LoadBalancer.md)
+- Guía de entrevista: [guia-entrevista-backend.md](guia-entrevista-backend.md)
+- Contribución (ES): [CONTRIBUTING.es.md](CONTRIBUTING.es.md)
+- Contribución (EN): [CONTRIBUTING.md](CONTRIBUTING.md)
+- Esquema POS y DDL: [pos_schema_instructions.md](pos_schema_instructions.md)
+- OpenAPI: [../specs/openapi.yaml](../specs/openapi.yaml) · AsyncAPI: [../specs/asyncapi.yaml](../specs/asyncapi.yaml)
+
 Este documento es un resumen práctico y en español para explicar, con seguridad, cómo funciona la plataforma y responder preguntas típicas del rol Backend Engineer (Spring/Spring Boot + Kafka Streams/Flink).
 
 ## 1. Ideas fuerza (30–60 segundos)
@@ -341,3 +353,6 @@ Guía para tus respuestas
 - Cuenta la historia de tu pipeline actual (Outbox + Debezium + Streams + persistencia + APIs).
 - Apóyate en los documentos (README y docs/* ) con enlaces y comandos concretos para mostrar que sabes “operar” el stack.
 - Usa cifras (p.e. “ventanas de 5 min”, “
+---
+
+Navegación rápida: [Volver al README](../README.md) · [Índice de docs](index.md) · [Mapa del proyecto](project-map.md) · [Guía de entrevista](guia-entrevista-backend.md) · [Observabilidad](observability-overview.md)

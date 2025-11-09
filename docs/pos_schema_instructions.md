@@ -1,5 +1,17 @@
 # Pos schema: DDL e instrucciones
 
+## Navegación
+- Inicio: [README](../README.md)
+- Metodología: [Metodologia.md](Metodologia.md)
+- Observabilidad (APM/OTel): [observability-overview.md](observability-overview.md)
+- Resiliencia BD (Patroni + HAProxy): [database-resilience.md](database-resilience.md)
+- Balanceador NGINX: [README-LoadBalancer.md](README-LoadBalancer.md)
+- Guía de entrevista: [guia-entrevista-backend.md](guia-entrevista-backend.md)
+- Contribución (ES): [CONTRIBUTING.es.md](CONTRIBUTING.es.md)
+- Contribución (EN): [CONTRIBUTING.md](CONTRIBUTING.md)
+- Esquema POS y DDL: [pos_schema_instructions.md](pos_schema_instructions.md)
+- OpenAPI: [../specs/openapi.yaml](../specs/openapi.yaml) · AsyncAPI: [../specs/asyncapi.yaml](../specs/asyncapi.yaml)
+
 Este archivo contiene el script DDL para crear el esquema `pos` y las tablas que espera la aplicación, y las instrucciones para aplicarlo.
 
 ## Archivos añadidos
@@ -43,3 +55,7 @@ logging.level.org.springframework.jdbc.core.JdbcTemplate=DEBUG
 ## Notas
 - El script crea las tablas en el esquema `pos`. Si prefieres mantener las tablas en el esquema público, en lugar de ejecutar este script aplica la otra opción: modificar las consultas SQL del código para no usar el prefijo `pos.`.
 - El payload se almacena en columnas JSONB; las consultas existentes usan `?::jsonb` al insertar. Asegúrate de que los valores que envías son JSON válidos.
+
+---
+
+Navegación rápida: [Volver al README](../README.md) · [Índice de docs](index.md) · [Mapa del proyecto](project-map.md) · [Guía de entrevista](guia-entrevista-backend.md) · [Observabilidad](observability-overview.md)

@@ -1,5 +1,17 @@
 # Contribuyendo a EDA Backend Plus
 
+## Navegación
+- Inicio: [README](../README.md)
+- Metodología: [Metodologia.md](Metodologia.md)
+- Observabilidad (APM/OTel): [observability-overview.md](observability-overview.md)
+- Resiliencia BD (Patroni + HAProxy): [database-resilience.md](database-resilience.md)
+- Balanceador NGINX: [README-LoadBalancer.md](README-LoadBalancer.md)
+- Guía de entrevista: [guia-entrevista-backend.md](guia-entrevista-backend.md)
+- Contribución (ES): [CONTRIBUTING.es.md](CONTRIBUTING.es.md)
+- Contribución (EN): [CONTRIBUTING.md](CONTRIBUTING.md)
+- Esquema POS y DDL: [pos_schema_instructions.md](pos_schema_instructions.md)
+- OpenAPI: [../specs/openapi.yaml](../specs/openapi.yaml) · AsyncAPI: [../specs/asyncapi.yaml](../specs/asyncapi.yaml)
+
 En primer lugar, ¡gracias por considerar contribuir a este proyecto! Son personas como tú las que hacen de este proyecto una gran herramienta.
 
 Este documento proporciona una guía para que los desarrolladores contribuyan a este proyecto. Describe el patrón arquitectónico, la estructura de una característica y el proceso para crear un nuevo punto final.
@@ -282,3 +294,7 @@ Para ejecutar las pruebas, puedes usar el siguiente comando de Maven:
 ```bash
 mvn test
 ```
+
+---
+
+Navegación rápida: [Volver al README](../README.md) · [Índice de docs](index.md) · [Mapa del proyecto](project-map.md) · [Guía de entrevista](guia-entrevista-backend.md) · [Observabilidad](observability-overview.md)

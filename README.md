@@ -4,13 +4,15 @@ Backend de Spring Boot que implementa una arquitectura EDA (Event-Driven Archite
 
 ## Índice navegable (guía en español)
 
-- Arquitectura y metodología: `docs/Metodologia.md`
-- Observabilidad (APM + OpenTelemetry): `docs/observability-overview.md`
-- Resiliencia de Base de Datos (Patroni + HAProxy): `docs/database-resilience.md`
-- Balanceador de carga NGINX: `docs/README-LoadBalancer.md`
-- Esquema POS y DDL: `docs/pos_schema_instructions.md`
-- Guía de contribución: `docs/CONTRIBUTING.es.md` · `docs/CONTRIBUTING.md`
- - Guía de entrevista (resumen y respuestas modelo): `docs/guia-entrevista-backend.md`
+- Índice general de documentación: [docs/index.md](docs/index.md)
+- Mapa del proyecto (estructura y componentes): [docs/project-map.md](docs/project-map.md)
+- Arquitectura y metodología: [docs/Metodologia.md](docs/Metodologia.md)
+- Observabilidad (APM + OpenTelemetry): [docs/observability-overview.md](docs/observability-overview.md)
+- Resiliencia de Base de Datos (Patroni + HAProxy): [docs/database-resilience.md](docs/database-resilience.md)
+- Balanceador de carga NGINX: [docs/README-LoadBalancer.md](docs/README-LoadBalancer.md)
+- Esquema POS y DDL: [docs/pos_schema_instructions.md](docs/pos_schema_instructions.md)
+- Guía de contribución: [docs/CONTRIBUTING.es.md](docs/CONTRIBUTING.es.md) · [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- Guía de entrevista (resumen y respuestas modelo): [docs/guia-entrevista-backend.md](docs/guia-entrevista-backend.md)
 
 > Nota: toda la documentación técnica está consolidada bajo `docs/`. Se han eliminado duplicados y se enlaza desde este README para facilitar estudio y entrevista.
 

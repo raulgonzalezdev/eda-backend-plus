@@ -1,5 +1,17 @@
 # Observabilidad en eda-backend-plus
 
+## Navegación
+- Inicio: [README](../README.md)
+- Metodología: [Metodologia.md](Metodologia.md)
+- Observabilidad (APM/OTel): [observability-overview.md](observability-overview.md)
+- Resiliencia BD (Patroni + HAProxy): [database-resilience.md](database-resilience.md)
+- Balanceador NGINX: [README-LoadBalancer.md](README-LoadBalancer.md)
+- Guía de entrevista: [guia-entrevista-backend.md](guia-entrevista-backend.md)
+- Contribución (ES): [CONTRIBUTING.es.md](CONTRIBUTING.es.md)
+- Contribución (EN): [CONTRIBUTING.md](CONTRIBUTING.md)
+- Esquema POS y DDL: [pos_schema_instructions.md](pos_schema_instructions.md)
+- OpenAPI: [../specs/openapi.yaml](../specs/openapi.yaml) · AsyncAPI: [../specs/asyncapi.yaml](../specs/asyncapi.yaml)
+
 Este documento resume qué hace cada servicio, cómo se conectan y cómo probar trazas/métricas/logs con OpenTelemetry y Elasticsearch/Kibana.
 
 ## Servicios principales
@@ -134,3 +146,7 @@ Esta sección documenta los cambios aplicados para que APM funcione con segurida
 - Logs APM Server: `docker compose logs --tail=200 apm-server`
 
 Importante: estas credenciales son solo para desarrollo local. En producción, usar Service Accounts o API Keys con alcance mínimo, TLS, y rotación de secretos.
+
+---
+
+Navegación rápida: [Volver al README](../README.md) · [Índice de docs](index.md) · [Mapa del proyecto](project-map.md) · [Guía de entrevista](guia-entrevista-backend.md) · [Observabilidad](observability-overview.md)
