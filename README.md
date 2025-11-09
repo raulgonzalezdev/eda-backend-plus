@@ -2,6 +2,38 @@
 
 Backend de Spring Boot que implementa una arquitectura EDA (Event-Driven Architecture) usando Kafka y Kafka Streams.
 
+## Índice navegable (guía en español)
+
+- Arquitectura y metodología: `docs/Metodologia.md`
+- Observabilidad (APM + OpenTelemetry): `docs/observability-overview.md`
+- Resiliencia de Base de Datos (Patroni + HAProxy): `docs/database-resilience.md`
+- Balanceador de carga NGINX: `docs/README-LoadBalancer.md`
+- Esquema POS y DDL: `docs/pos_schema_instructions.md`
+- Guía de contribución: `docs/CONTRIBUTING.es.md` · `docs/CONTRIBUTING.md`
+ - Guía de entrevista (resumen y respuestas modelo): `docs/guia-entrevista-backend.md`
+
+> Nota: toda la documentación técnica está consolidada bajo `docs/`. Se han eliminado duplicados y se enlaza desde este README para facilitar estudio y entrevista.
+
+## Guía rápida para entrevista
+
+- Arquitectura: monolito distribuido (3 instancias) balanceadas por NGINX, Kafka como bus de eventos, PostgreSQL con HA (Patroni+HAProxy). Patrón Outbox + Debezium para CDC.
+- Observabilidad: agente OpenTelemetry Java exporta trazas/métricas/logs a APM Server; Kibana muestra el servicio `eda-backend` en APM.
+- Flujo clave:
+  - `POST /events/*` → persiste en BD y outbox → Debezium publica en Kafka → Streams calcula umbral → publica en `alerts.suspect` → `AlertsConsumer` guarda en `pos.alerts` → `GET /alerts` (Kafka) y `GET /alerts-db` (BD).
+- Resiliencia: HAProxy enruta a líder/replicas; failover automático con Patroni.
+- Seguridad: JWT para endpoints; en dev, seguridad de Elasticsearch/Kibana activada para Fleet.
+
+### Credenciales de observabilidad (solo dev)
+
+Las credenciales y pasos para que APM funcione están documentados en `docs/observability-overview.md` (sección “Notas y credenciales”).
+
+Valores principales:
+- Kibana (UI): usuario `elastic` / contraseña `changeme`
+- Conexión interna Kibana→ES: `kibana_system` / `changemeKBN`
+- APM Server→Elasticsearch: usuario `apm_writer` / contraseña `changemeAPMWRITER`
+
+Para detalles y verificación de data streams, consulta los comandos en la sección correspondiente del documento de observabilidad.
+
 ## 1. Desarrollo Local
 
 ### Prerrequisitos

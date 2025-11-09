@@ -90,3 +90,47 @@ Consulta `http://localhost:9200/_cat/indices?v` para ver índices disponibles. C
 - Reconstruir apps: `docker compose up -d --no-deps --build app1 app2 app3`
 - Ver estado Debezium: `curl http://localhost:8083/connectors/outbox-connector/status`
 - Probar tráfico: `pwsh ./scripts/observability_smoke.ps1 -Count 20`
+
+---
+
+## Notas y credenciales (dev)
+
+Esta sección documenta los cambios aplicados para que APM funcione con seguridad habilitada y Fleet/Integrations instaladas.
+
+- Elasticsearch (docker-compose):
+  - `xpack.security.enabled=true`
+  - `ELASTIC_PASSWORD=changeme`
+  - `xpack.apm_data.enabled=true` (instala plantillas APM sin necesidad de Fleet en entornos aislados)
+- Kibana (docker-compose):
+  - `ELASTICSEARCH_HOSTS=http://elasticsearch:9200`
+  - `ELASTICSEARCH_USERNAME=kibana_system`
+  - `ELASTICSEARCH_PASSWORD=changemeKBN`
+  - Inicio de sesión en UI: `elastic` / `changeme`
+- APM Server (`config/apm-server.yml`):
+  - `output.elasticsearch.hosts: ["http://elasticsearch:9200"]`
+  - `output.elasticsearch.protocol: "http"`
+  - Credenciales de escritura (usuario creado para dev):
+    - `output.elasticsearch.username: "apm_writer"`
+    - `output.elasticsearch.password: "changemeAPMWRITER"`
+
+### Pasos aplicados (resumen)
+
+1. Habilitar seguridad en Elasticsearch y configurar Kibana con `kibana_system`.
+2. Inicializar Fleet e instalar la integración APM v8.14.0 vía API.
+3. Resolver errores de autenticación de APM Server (401) y permisos de `auto_create` creando:
+   - Rol `apm_writer_role` con privilegios `auto_configure`, `create_index`, `write`, `create_doc` sobre `logs-apm*`, `metrics-apm*`, `traces-apm*`.
+   - Usuario `apm_writer` con contraseña `changemeAPMWRITER` y asignarlo al rol.
+4. Configurar `apm-server.yml` para usar `apm_writer` y reiniciar el servicio.
+5. Verificar que APM Server maneja `POST /v1/traces|metrics|logs` con 200 y que existen data streams.
+
+### Verificaciones útiles
+
+- Estado Kibana: `GET http://localhost:5601/api/status`
+- Data streams: `GET http://localhost:9200/_data_stream?pretty` (usar Basic `elastic:changeme`)
+- Índices por prefijo:
+  - `GET http://localhost:9200/_cat/indices/logs-apm*?v`
+  - `GET http://localhost:9200/_cat/indices/metrics-apm*?v`
+  - `GET http://localhost:9200/_cat/indices/traces-apm*?v`
+- Logs APM Server: `docker compose logs --tail=200 apm-server`
+
+Importante: estas credenciales son solo para desarrollo local. En producción, usar Service Accounts o API Keys con alcance mínimo, TLS, y rotación de secretos.

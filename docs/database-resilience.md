@@ -1,5 +1,7 @@
 # Resiliencia de Base de Datos - Cluster Patroni + etcd
 
+> Documento canónico de resiliencia de base de datos. El archivo `docs/README-DatabaseResilience.md` fue eliminado por duplicado y toda la referencia desde el README raíz apunta a este documento.
+
 ## Descripción General
 
 Este documento describe la implementación de alta disponibilidad para PostgreSQL utilizando Patroni como gestor de cluster y etcd como almacén de configuración distribuida. Esta solución proporciona failover automático, replicación streaming y recuperación automática de nodos.
