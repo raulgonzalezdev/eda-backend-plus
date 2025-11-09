@@ -1,17 +1,62 @@
 #!/bin/sh
-set -x
+set -eu
 
-# Create a logs directory if it doesn't exist
 mkdir -p /app/logs
 
-# Start the application with OpenTelemetry Java agent (configurable via env)
+# OpenTelemetry Java agent (configurable via env)
 JAVA_AGENT=/opt/otel/opentelemetry-javaagent.jar
-
-# Defaults can be overridden by environment variables
 OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-eda-backend}
 OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://apm-server:8200}
 OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
 ENABLE_OTEL=${ENABLE_OTEL:-true}
+
+# Esperas robustas de dependencias
+WAIT_RETRIES=${WAIT_RETRIES:-60}
+WAIT_SLEEP=${WAIT_SLEEP:-2}
+
+wait_tcp() {
+  host="$1"; port="$2"; name="$3"; retries=${4:-$WAIT_RETRIES}
+  i=1
+  echo "[wait] Esperando ${name} en ${host}:${port} (max ${retries} intentos)"
+  while [ "$i" -le "$retries" ]; do
+    if nc -z "$host" "$port" 2>/dev/null; then
+      echo "[wait] ${name} disponible"
+      return 0
+    fi
+    i=$((i+1))
+    sleep "$WAIT_SLEEP"
+  done
+  echo "[wait] ERROR: ${name} no disponible tras ${retries} intentos" >&2
+  return 1
+}
+
+wait_http() {
+  url="$1"; name="$2"; retries=${3:-$WAIT_RETRIES}
+  i=1
+  echo "[wait] Esperando ${name} en ${url}"
+  while [ "$i" -le "$retries" ]; do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      echo "[wait] ${name} disponible"
+      return 0
+    fi
+    i=$((i+1))
+    sleep "$WAIT_SLEEP"
+  done
+  echo "[wait] WARNING: ${name} no respondió HTTP; continúo" >&2
+  return 1
+}
+
+# Esperar DB vía HAProxy (master)
+wait_tcp "haproxy" 5000 "Postgres via HAProxy" || true
+
+# Esperar Kafka al menos broker principal
+wait_tcp "kafka" 9092 "Kafka broker kafka" || true
+# Intentar también los otros brokers si existen
+wait_tcp "kafka2" 9093 "Kafka broker kafka2" || true
+wait_tcp "kafka3" 9094 "Kafka broker kafka3" || true
+
+# Esperar APM Server (OTLP HTTP)
+wait_http "${OTEL_EXPORTER_OTLP_ENDPOINT}" "APM Server" || true
 
 if [ "$ENABLE_OTEL" = "true" ] && [ -f "$JAVA_AGENT" ]; then
   JAVA_OPTS="${JAVA_OPTS} -javaagent:${JAVA_AGENT}"

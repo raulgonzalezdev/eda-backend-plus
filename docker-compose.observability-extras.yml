@@ -1,0 +1,41 @@
+services:
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.14.2
+    container_name: filebeat
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/beats/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    environment:
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - KIBANA_HOST=http://kibana:5601
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=changeme
+    networks:
+      - kafka-network
+    # Nota: este compose NO se ejecuta ahora. Está listo para post-entrevista.
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.14.2
+    container_name: logstash
+    volumes:
+      - ./config/logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ./config/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./config/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    environment:
+      - LS_JAVA_OPTS=-Xms512m -Xmx512m
+      - KAFKA_BOOTSTRAP=kafka:9092
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=changeme
+    networks:
+      - kafka-network
+    # Nota: este compose NO se ejecuta ahora. Está listo para post-entrevista.
+
+networks:
+  kafka-network:
+    external: true
+    name: eda-backend-plus_kafka-network
+
+# Se asume que 'elasticsearch', 'kibana' y 'kafka' están definidos en el compose principal y comparten la red externa 'kafka-network'.

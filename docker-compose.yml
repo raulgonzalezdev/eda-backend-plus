@@ -257,6 +257,12 @@ services:
       - kafka_data_1:/var/lib/kafka/data
     networks:
       - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "cub kafka-ready 1 20 localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   kafka2:
     image: confluentinc/cp-kafka:7.4.0
@@ -277,6 +283,12 @@ services:
       - kafka_data_2:/var/lib/kafka/data
     networks:
       - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "cub kafka-ready 1 20 localhost:9093"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   kafka3:
     image: confluentinc/cp-kafka:7.4.0
@@ -297,6 +309,12 @@ services:
       - kafka_data_3:/var/lib/kafka/data
     networks:
       - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "cub kafka-ready 1 20 localhost:9094"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   # ===== KAFKA TOPICS INITIALIZATION =====
   kafka-init:
@@ -465,10 +483,14 @@ services:
     build: .
     container_name: eda-backend-app1
     depends_on:
-      - kafka
-      - kafka2
-      - kafka3
-      - haproxy
+      kafka:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+      haproxy:
+        condition: service_started
     env_file:
       - .env
     environment:
@@ -507,10 +529,14 @@ services:
     build: .
     container_name: eda-backend-app2
     depends_on:
-      - kafka
-      - kafka2
-      - kafka3
-      - haproxy
+      kafka:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+      haproxy:
+        condition: service_started
     env_file:
       - .env
     environment:
@@ -558,10 +584,14 @@ services:
     build: .
     container_name: eda-backend-app3
     depends_on:
-      - kafka
-      - kafka2
-      - kafka3
-      - haproxy
+      kafka:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+      haproxy:
+        condition: service_started
     env_file:
       - .env
     environment:

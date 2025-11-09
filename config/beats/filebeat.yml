@@ -1,0 +1,23 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*-json.log
+    processors:
+      - add_fields:
+          target: service
+          fields:
+            name: eda-backend
+            env: dev
+
+setup.kibana:
+  host: ${KIBANA_HOST:http://kibana:5601}
+
+output.elasticsearch:
+  hosts: ["${ELASTICSEARCH_HOST:http://elasticsearch:9200}"]
+  username: ${ELASTIC_USER:elastic}
+  password: ${ELASTIC_PASSWORD:changeme}
+
+logging.to_files: true
+logging.files:
+  path: /usr/share/filebeat/logs

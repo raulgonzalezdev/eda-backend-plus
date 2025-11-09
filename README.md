@@ -6,6 +6,8 @@ Backend de Spring Boot que implementa una arquitectura EDA (Event-Driven Archite
 
 - Índice general de documentación: [docs/index.md](docs/index.md)
 - Mapa del proyecto (estructura y componentes): [docs/project-map.md](docs/project-map.md)
+- Plan de microservicios (sin despliegue): [docs/microservices-plan.md](docs/microservices-plan.md)
+ - Arquitectura de microservicios (diagrama y flujo): [docs/microservices-architecture.md](docs/microservices-architecture.md)
 - Arquitectura y metodología: [docs/Metodologia.md](docs/Metodologia.md)
 - Observabilidad (APM + OpenTelemetry): [docs/observability-overview.md](docs/observability-overview.md)
 - Resiliencia de Base de Datos (Patroni + HAProxy): [docs/database-resilience.md](docs/database-resilience.md)

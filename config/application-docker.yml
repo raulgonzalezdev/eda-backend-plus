@@ -7,7 +7,20 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   kafka:
-    bootstrap-servers: kafka1:19092,kafka2:19093,kafka3:19094
+    bootstrap-servers: kafka:9092,kafka2:9093,kafka3:9094
+    properties:
+      reconnect.backoff.ms: 1000
+      reconnect.backoff.max.ms: 30000
+      retry.backoff.ms: 1000
+      request.timeout.ms: 30000
+      metadata.max.age.ms: 60000
+    streams:
+      properties:
+        reconnect.backoff.ms: 1000
+        reconnect.backoff.max.ms: 30000
+        retry.backoff.ms: 1000
+        request.timeout.ms: 30000
+        metadata.max.age.ms: 60000
   flyway:
     locations: classpath:db/migration,classpath:db/common
     baseline-on-migrate: true
