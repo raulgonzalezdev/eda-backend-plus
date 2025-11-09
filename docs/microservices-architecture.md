@@ -11,35 +11,62 @@ Este documento describe la arquitectura objetivo basada en microservicios constr
 - Observabilidad: agente OTel (opcional en cada servicio) → APM Server → Elasticsearch → Kibana.
 - CDC Outbox (monolito actual, opcional en transición): Debezium puede convivir mientras migras endpoints.
 
-## Diagrama (texto)
-```
-                       +---------------------------+
-                       |       gateway-service     |
-                       |  /api/payments  /api/trans|
-                       +-------------+-------------+
-                                     | routes
-           +-------------------------+--------------------------+
-           |                                                    |
-----------v----------+                              +----------v----------+
-| payments-service    |                              | transfers-service   |
-| POST /payments      |                              | POST /transfers     |
-| -> Kafka produce    |                              | -> Kafka produce    |
-| topic: payments.ev. |                              | topic: transfers.ev.|
-----------+----------+                              +----------+----------+
-           |                                                     |
-           |                             Kafka (zookeeper/kafka)|
-           +------------------------+------------+--------------+
-                                    |            |
-                           +--------v------------v--------+
-                           |        alerts-service        |
-                           |   Kafka Streams topology     |
-                           | filter >= ALERT_THRESHOLD    |
-                           | -> topic: alerts.suspect     |
-                           +------------------------------+
+## Diagrama (Mermaid)
 
-Observabilidad: OTel agents (services) -> APM Server -> Elasticsearch -> Kibana
-Opcional: monolito actual vía NGINX para /api/alerts y /alerts-db durante transición
+```mermaid
+flowchart LR
+  %% Gateway
+  subgraph Gateway
+    GW[gateway-service\n(Spring Cloud Gateway)]
+  end
+
+  %% Domain Services
+  subgraph Services[Domain Services]
+    PAY[payments-service]\n
+    TRN[transfers-service]
+  end
+
+  %% Kafka Cluster
+  subgraph KafkaCluster[Kafka Cluster]
+    KAFKA[(Kafka)]
+  end
+
+  %% Streaming
+  subgraph Streaming
+    ALS[alerts-service\n(Kafka Streams)]
+  end
+
+  %% Observability
+  subgraph Observability
+    APM[apm-server]
+    ES[(Elasticsearch)]
+    KB[Kibana]
+  end
+
+  %% Optional Monolith via NGINX
+  NGX[nginx-load-balancer]\n
+
+  %% Routing from Gateway
+  GW -- "/api/payments" --> PAY
+  GW -- "/api/transfers" --> TRN
+  GW -- "/api/alerts, /alerts-db (opcional)" --> NGX
+
+  %% Producers to Kafka
+  PAY -- "produce → payments.events" --> KAFKA
+  TRN -- "produce → transfers.events" --> KAFKA
+
+  %% Streams processing
+  KAFKA -- "consume payments/transfers" --> ALS
+  ALS -- "produce → alerts.suspect" --> KAFKA
+
+  %% Observability pipeline
+  PAY -. "OTLP" .-> APM
+  TRN -. "OTLP" .-> APM
+  ALS -. "OTLP" .-> APM
+  APM --> ES --> KB
 ```
+
+Nota: GitHub renderiza diagramas Mermaid. Si tu visor local no lo soporta, copia el bloque en https://mermaid.live para visualizarlo.
 
 ## Flujo de datos
 - Entrada:
