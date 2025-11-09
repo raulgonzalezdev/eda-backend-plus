@@ -1,0 +1,40 @@
+server:
+  port: 9080
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      default-filters:
+        - RemoveRequestHeader=X-Forwarded-Host
+      routes:
+        - id: payments_route
+          uri: http://payments-service:9101
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - StripPrefix=1
+        - id: transfers_route
+          uri: http://transfers-service:9102
+          predicates:
+            - Path=/api/transfers/**
+          filters:
+            - StripPrefix=1
+        - id: monolith_alerts
+          uri: http://nginx-load-balancer:8080
+          predicates:
+            - Path=/api/alerts/**
+            - Path=/alerts-db/**
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "GET,POST,PUT,DELETE,OPTIONS"
+            allowedHeaders: "*"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

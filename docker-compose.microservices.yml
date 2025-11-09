@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  payments-service:
+    build:
+      context: ./services/payments-service
+    image: eda/payments-service:0.1.0
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - kafka-network
+    ports:
+      - "9101:9101"
+    depends_on:
+      - kafka
+
+  transfers-service:
+    build:
+      context: ./services/transfers-service
+    image: eda/transfers-service:0.1.0
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - kafka-network
+    ports:
+      - "9102:9102"
+    depends_on:
+      - kafka
+
+  alerts-service:
+    build:
+      context: ./services/alerts-service
+    image: eda/alerts-service:0.1.0
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - ALERT_THRESHOLD=10000
+      - KAFKA_STREAMS_APP_ID=alerts-service-app
+    networks:
+      - kafka-network
+    ports:
+      - "9103:9103"
+    depends_on:
+      - kafka
+
+  gateway-service:
+    build:
+      context: ./services/gateway-service
+    image: eda/gateway-service:0.1.0
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+    networks:
+      - kafka-network
+    ports:
+      - "9080:9080"
+    depends_on:
+      - payments-service
+      - transfers-service
+
+networks:
+  kafka-network:
+    external: true

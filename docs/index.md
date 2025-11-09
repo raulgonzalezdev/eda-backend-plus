@@ -13,6 +13,7 @@ Esta página reúne todos los documentos técnicos para navegar fácilmente desd
 - Contribución (ES): [CONTRIBUTING.es.md](CONTRIBUTING.es.md)
 - Contribución (EN): [CONTRIBUTING.md](CONTRIBUTING.md)
 - Contratos: [../specs/openapi.yaml](../specs/openapi.yaml) · [../specs/asyncapi.yaml](../specs/asyncapi.yaml)
+ - Arquitectura de microservicios: [microservices-architecture.md](microservices-architecture.md)
 
 ## Descripciones breves
 - Metodología: panorama del proyecto, arquitectura, patrones clave y preguntas técnicas.
@@ -22,6 +23,7 @@ Esta página reúne todos los documentos técnicos para navegar fácilmente desd
 - POS/DDL: script de creación del esquema pos y verificaciones.
 - Guía de entrevista: narrativa, preguntas y respuestas modelo, checklist de demo.
 - Contribución: guía para desarrollar, estructura de capas y ejemplo CRUD.
+ - Arquitectura de microservicios: diagrama textual, flujo, límites, plan de evolución.
 
 ---
 
