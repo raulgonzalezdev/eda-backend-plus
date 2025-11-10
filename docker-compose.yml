@@ -258,11 +258,11 @@ services:
     networks:
       - kafka-network
     healthcheck:
-      test: ["CMD-SHELL", "cub kafka-ready 1 20 localhost:9092"]
+      test: ["CMD-SHELL", "cub kafka-ready 1 40 localhost:9092"]
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 30s
+      retries: 20
+      start_period: 120s
 
   kafka2:
     image: confluentinc/cp-kafka:7.4.0
@@ -284,11 +284,11 @@ services:
     networks:
       - kafka-network
     healthcheck:
-      test: ["CMD-SHELL", "cub kafka-ready 1 20 localhost:9093"]
+      test: ["CMD-SHELL", "cub kafka-ready 1 40 localhost:9093"]
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 30s
+      retries: 20
+      start_period: 120s
 
   kafka3:
     image: confluentinc/cp-kafka:7.4.0
@@ -310,11 +310,11 @@ services:
     networks:
       - kafka-network
     healthcheck:
-      test: ["CMD-SHELL", "cub kafka-ready 1 20 localhost:9094"]
+      test: ["CMD-SHELL", "cub kafka-ready 1 40 localhost:9094"]
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 30s
+      retries: 20
+      start_period: 120s
 
   # ===== KAFKA TOPICS INITIALIZATION =====
   kafka-init:
@@ -328,9 +328,9 @@ services:
       - kafka-network
     command: >
         bash -c "
-          echo 'Waiting for Kafka cluster to be ready...'
-          sleep 90
-          echo 'Creating Kafka topics...'
+          echo 'Waiting for Kafka brokers to be healthy...';
+          cub kafka-ready 1 180 kafka:9092 && cub kafka-ready 1 180 kafka2:9093 && cub kafka-ready 1 180 kafka3:9094 || { echo 'Kafka not ready'; exit 1; }
+          echo 'Creating Kafka topics...';
           kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 1 || true
           kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 1 || true
           kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 1 || true
@@ -338,10 +338,10 @@ services:
           kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_config --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
           kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_offsets --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
           kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_status --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
-          echo 'Topics created successfully!'
-          echo 'Listing all topics:'
-          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --list || true
-          echo 'Topic creation completed. Container will exit.'
+          echo 'Topics created successfully!';
+          echo 'Listing all topics:';
+          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --list || true;
+          echo 'Topic creation completed. Container will exit.';
         "
     restart: "no"
 
@@ -485,11 +485,11 @@ services:
     container_name: eda-backend-app1
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_started
       kafka2:
-        condition: service_healthy
+        condition: service_started
       kafka3:
-        condition: service_healthy
+        condition: service_started
       haproxy:
         condition: service_started
     env_file:
@@ -541,11 +541,11 @@ services:
     container_name: eda-backend-app2
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_started
       kafka2:
-        condition: service_healthy
+        condition: service_started
       kafka3:
-        condition: service_healthy
+        condition: service_started
       haproxy:
         condition: service_started
     env_file:
@@ -597,11 +597,11 @@ services:
     container_name: eda-backend-app3
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_started
       kafka2:
-        condition: service_healthy
+        condition: service_started
       kafka3:
-        condition: service_healthy
+        condition: service_started
       haproxy:
         condition: service_started
     env_file:
