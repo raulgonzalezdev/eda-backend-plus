@@ -11,12 +11,38 @@ Write-Host "[SETUP] Creando visualizaciones (Vega) y dashboard en Kibana" -Foreg
 
 $indexPatternId = 'backend-events'
 
+# Helpers para actualizar objetos existentes por título (evita crear duplicados)
+function Get-SavedObjectId {
+  param([string]$Type,[string]$Title)
+  try {
+    $findUri = "$KibanaUrl/api/saved_objects/_find?type=$Type&search_fields=title&search=$([uri]::EscapeDataString($Title))"
+    $resp = Invoke-RestMethod -Method Get -Uri $findUri -Headers $headers
+    foreach ($obj in $resp.saved_objects) { if ($obj.attributes.title -eq $Title) { return $obj.id } }
+  } catch {}
+  return $null
+}
+
+function Save-OrUpdate {
+  param([string]$Type,[string]$Title,[object]$Body)
+  $id = Get-SavedObjectId -Type $Type -Title $Title
+  $jsonBody = if ($Body -is [string]) { $Body } else { $Body | ConvertTo-Json -Depth 50 }
+  if ($id) {
+    Invoke-RestMethod -Method Put -Uri "$KibanaUrl/api/saved_objects/$Type/$id" -Headers $headers -Body $jsonBody | Out-Null
+    Write-Host "[OK] $Type actualizado: $Title (id: $id)" -ForegroundColor Green
+    return $id
+  } else {
+    $resp = Invoke-RestMethod -Method Post -Uri "$KibanaUrl/api/saved_objects/$Type" -Headers $headers -Body $jsonBody
+    Write-Host "[OK] $Type creado: $Title (id: $($resp.id))" -ForegroundColor Green
+    return $resp.id
+  }
+}
+
 # --- Visualización 1: Eventos por minuto (línea) ---
 $vegaSpec1 = @'
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
   "data": {
-    "url": { "%context%": true, "%timefield%": "@timestamp", "index": "backend.events-*", "body": { "size": 0, "aggs": { "per_min": { "date_histogram": { "field": "@timestamp", "calendar_interval": "1m" } } } } },
+    "url": { "%context%": true, "%timefield%": "@timestamp", "index": "alerts.enriched-*", "body": { "size": 0, "aggs": { "per_min": { "date_histogram": { "field": "@timestamp", "calendar_interval": "1m" } } } } },
     "format": { "property": "aggregations.per_min.buckets" }
   },
   "mark": "line",
@@ -33,29 +59,27 @@ $searchSource1 = @{ index = $indexPatternId; query = @{ language = 'kuery'; quer
 $body1 = @{ 
   attributes = @{ 
     title = 'Eventos/min backend (Vega)';
-    description = 'Eventos por minuto en backend.events-*';
+    description = 'Eventos por minuto en alerts.enriched-*';
     visState = $visState1;
     kibanaSavedObjectMeta = @{ searchSourceJSON = $searchSource1 } 
   };
   references = @(@{ id = $indexPatternId; name = 'kibanaSavedObjectMeta.searchSourceJSON.index'; type = 'index-pattern' })
 } | ConvertTo-Json -Depth 50
 
-$resp1 = Invoke-RestMethod -Method Post -Uri "$KibanaUrl/api/saved_objects/visualization" -Headers $headers -Body $body1
-$vis1Id = $resp1.id
-Write-Host "[OK] Visualización 1 creada (id: $vis1Id)" -ForegroundColor Green
+$vis1Id = Save-OrUpdate -Type 'visualization' -Title 'Eventos/min backend (Vega)' -Body $body1
 
 # --- Visualización 2: Latencia media por endpoint (barras) ---
 $vegaSpec2 = @'
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
   "data": {
-    "url": { "%context%": true, "%timefield%": "@timestamp", "index": "backend.events-*", "body": { "size": 0, "aggs": { "by_ep": { "terms": { "field": "endpoint.keyword", "size": 10 }, "aggs": { "lat": { "avg": { "field": "latency_ms" } } } } } } },
+    "url": { "%context%": true, "%timefield%": "@timestamp", "index": "alerts.enriched-*", "body": { "size": 0, "aggs": { "by_ep": { "terms": { "field": "type.keyword", "size": 10 }, "aggs": { "amt": { "avg": { "field": "amount" } } } } } } },
     "format": { "property": "aggregations.by_ep.buckets" }
   },
   "mark": "bar",
   "encoding": {
-    "x": { "field": "key", "type": "nominal", "title": "endpoint" },
-    "y": { "field": "lat.value", "type": "quantitative", "title": "avg latency (ms)" }
+    "x": { "field": "key", "type": "nominal", "title": "type" },
+    "y": { "field": "amt.value", "type": "quantitative", "title": "avg amount" }
   }
 }
 '@
@@ -73,21 +97,19 @@ $body2 = @{
   references = @(@{ id = $indexPatternId; name = 'kibanaSavedObjectMeta.searchSourceJSON.index'; type = 'index-pattern' })
 } | ConvertTo-Json -Depth 50
 
-$resp2 = Invoke-RestMethod -Method Post -Uri "$KibanaUrl/api/saved_objects/visualization" -Headers $headers -Body $body2
-$vis2Id = $resp2.id
-Write-Host "[OK] Visualización 2 creada (id: $vis2Id)" -ForegroundColor Green
+$vis2Id = Save-OrUpdate -Type 'visualization' -Title 'Latencia media por endpoint (Vega)' -Body $body2
 
 # --- Visualización 3: Monto promedio por endpoint (barras) ---
 $vegaSpec3 = @'
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
   "data": {
-    "url": { "%context%": true, "%timefield%": "@timestamp", "index": "backend.events-*", "body": { "size": 0, "aggs": { "by_ep": { "terms": { "field": "endpoint.keyword", "size": 10 }, "aggs": { "amt": { "avg": { "field": "amount" } } } } } } },
+    "url": { "%context%": true, "%timefield%": "@timestamp", "index": "alerts.enriched-*", "body": { "size": 0, "aggs": { "by_ep": { "terms": { "field": "type.keyword", "size": 10 }, "aggs": { "amt": { "avg": { "field": "amount" } } } } } } },
     "format": { "property": "aggregations.by_ep.buckets" }
   },
   "mark": "bar",
   "encoding": {
-    "x": { "field": "key", "type": "nominal", "title": "endpoint" },
+    "x": { "field": "key", "type": "nominal", "title": "type" },
     "y": { "field": "amt.value", "type": "quantitative", "title": "avg amount" }
   }
 }
@@ -106,9 +128,7 @@ $body3 = @{
   references = @(@{ id = $indexPatternId; name = 'kibanaSavedObjectMeta.searchSourceJSON.index'; type = 'index-pattern' })
 } | ConvertTo-Json -Depth 50
 
-$resp3 = Invoke-RestMethod -Method Post -Uri "$KibanaUrl/api/saved_objects/visualization" -Headers $headers -Body $body3
-$vis3Id = $resp3.id
-Write-Host "[OK] Visualización 3 creada (id: $vis3Id)" -ForegroundColor Green
+$vis3Id = Save-OrUpdate -Type 'visualization' -Title 'Monto promedio por endpoint (Vega)' -Body $body3
 
 # --- Dashboard con las dos visualizaciones ---
 $panels = @(
@@ -133,7 +153,6 @@ $dashBody = @{
   )
 } | ConvertTo-Json -Depth 50
 
-$dashResp = Invoke-RestMethod -Method Post -Uri "$KibanaUrl/api/saved_objects/dashboard" -Headers $headers -Body $dashBody
-$dashId = $dashResp.id
-Write-Host "[OK] Dashboard creado: Backend Observability (id: $dashId)" -ForegroundColor Green
+$dashId = Save-OrUpdate -Type 'dashboard' -Title 'Backend Observability' -Body $dashBody
+Write-Host "[OPEN] $KibanaUrl/app/dashboards#/view/$dashId" -ForegroundColor Cyan
 Write-Host "[OPEN] $KibanaUrl/app/dashboards#/view/$dashId" -ForegroundColor Cyan
