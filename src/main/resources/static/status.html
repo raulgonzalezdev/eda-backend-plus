@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EDA Bank • Estado</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Estado de servicios</h1>
+      <nav class="nav">
+        <a href="/login.html">Login</a>
+        <a href="/users.html">Usuarios</a>
+        <a href="/chat.html">Chat</a>
+        <a href="/payments.html">Pagos y Transferencias</a>
+        <a href="/status.html">Estado</a>
+      </nav>
+    </header>
+
+    <main class="stack gap-16">
+      <section class="card">
+        <h2>Health checks</h2>
+        <div class="row">
+          <div class="stack">
+            <button id="btn-health">Consultar</button>
+          </div>
+          <pre id="health" style="overflow:auto;max-height:220px"></pre>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Actuator</h2>
+        <div class="row">
+          <div class="stack">
+            <button id="btn-actuator">Ver /actuator/health</button>
+          </div>
+          <pre id="actuator" style="overflow:auto;max-height:220px"></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">© EDA Bank</footer>
+  </div>
+
+  <script>
+    const jfetch = (url) => fetch(url).then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || r.statusText); }));
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('btn-health').onclick = async () => {
+        try {
+          const d = await jfetch('/api/health');
+          document.getElementById('health').textContent = JSON.stringify(d, null, 2);
+        } catch (e) { alert('Error /api/health: ' + e.message); }
+      };
+      document.getElementById('btn-actuator').onclick = async () => {
+        try {
+          const d = await jfetch('/actuator/health');
+          document.getElementById('actuator').textContent = JSON.stringify(d, null, 2);
+        } catch (e) { alert('Error /actuator/health: ' + e.message); }
+      };
+    });
+  </script>
+</body>
+</html>

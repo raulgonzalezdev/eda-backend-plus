@@ -343,7 +343,7 @@ services:
     container_name: nginx-load-balancer
     depends_on:
       app:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "80:80"
       - "8080:8080"
@@ -351,6 +351,7 @@ services:
       - "8090:8090"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./src/main/resources/static:/usr/share/nginx/html:ro
     networks:
       - kafka-network
     restart: unless-stopped
@@ -477,7 +478,7 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app1
     # Exponer solo vía NGINX; evita acceso directo inconsistente por 8081
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"] # o wget -q --spider
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/api/health"] # usa el HealthController expuesto
       interval: 30s
       timeout: 10s
       retries: 5

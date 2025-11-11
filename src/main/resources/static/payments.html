@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EDA Bank • Pagos y Transferencias</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Pagos y Transferencias</h1>
+      <nav class="nav">
+        <a href="/login.html">Login</a>
+        <a href="/users.html">Usuarios</a>
+        <a href="/chat.html">Chat</a>
+        <a href="/payments.html">Pagos y Transferencias</a>
+        <a href="/status.html">Estado</a>
+      </nav>
+    </header>
+
+    <main class="stack gap-16">
+      <section class="card">
+        <h2>Publicar pago</h2>
+        <div class="row">
+          <div class="stack gap-12">
+            <label>Monto
+              <input id="p-amount" type="number" step="0.01" />
+            </label>
+            <label>Moneda
+              <input id="p-currency" value="USD" />
+            </label>
+            <label>Cuenta
+              <input id="p-account" placeholder="123-456" />
+            </label>
+            <button id="btn-pay">Enviar pago</button>
+          </div>
+          <pre id="p-log" style="overflow:auto;max-height:220px"></pre>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Publicar transferencia</h2>
+        <div class="row">
+          <div class="stack gap-12">
+            <label>Monto
+              <input id="t-amount" type="number" step="0.01" />
+            </label>
+            <label>Moneda
+              <input id="t-currency" value="USD" />
+            </label>
+            <label>Desde
+              <input id="t-from" placeholder="cuenta origen" />
+            </label>
+            <label>Hacia
+              <input id="t-to" placeholder="cuenta destino" />
+            </label>
+            <button id="btn-transfer">Enviar transferencia</button>
+          </div>
+          <pre id="t-log" style="overflow:auto;max-height:220px"></pre>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Token</h2>
+        <div class="row">
+          <div class="stack">
+            <label>Token
+              <textarea id="token" rows="4" placeholder="Se carga de localStorage"></textarea>
+            </label>
+            <p class="muted">Los endpoints de eventos requieren autenticación.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">© EDA Bank</footer>
+  </div>
+
+  <script>
+    const API = '';
+    const getToken = () => localStorage.getItem('token') || '';
+    const jpost = (url, body) => fetch(API + url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() }, body: JSON.stringify(body) })
+      .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || r.statusText); }));
+
+    const log = (el, msg) => {
+      el.textContent += (typeof msg === 'string' ? msg : JSON.stringify(msg)) + "\n";
+      el.scrollTop = el.scrollHeight;
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const t = getToken();
+      if (t) document.getElementById('token').value = t;
+
+      document.getElementById('btn-pay').onclick = async () => {
+        const amount = parseFloat(document.getElementById('p-amount').value);
+        const currency = document.getElementById('p-currency').value.trim();
+        const account = document.getElementById('p-account').value.trim();
+        if (!amount || !currency || !account) return alert('Completa todos los campos');
+        try {
+          const res = await jpost('/events/payments', { amount, currency, account });
+          log(document.getElementById('p-log'), res);
+          alert('Pago publicado');
+        } catch (e) { alert('Error pago: ' + e.message); }
+      };
+
+      document.getElementById('btn-transfer').onclick = async () => {
+        const amount = parseFloat(document.getElementById('t-amount').value);
+        const currency = document.getElementById('t-currency').value.trim();
+        const from = document.getElementById('t-from').value.trim();
+        const to = document.getElementById('t-to').value.trim();
+        if (!amount || !currency || !from || !to) return alert('Completa todos los campos');
+        try {
+          const res = await jpost('/events/transfers', { amount, currency, from, to });
+          log(document.getElementById('t-log'), res);
+          alert('Transferencia publicada');
+        } catch (e) { alert('Error transferencia: ' + e.message); }
+      };
+    });
+  </script>
+</body>
+</html>

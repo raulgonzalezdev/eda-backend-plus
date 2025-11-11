@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EDA Bank • Chat</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Chat en tiempo real</h1>
+      <nav class="nav">
+        <a href="/login.html">Login</a>
+        <a href="/users.html">Usuarios</a>
+        <a href="/chat.html">Chat</a>
+        <a href="/payments.html">Pagos y Transferencias</a>
+        <a href="/status.html">Estado</a>
+      </nav>
+    </header>
+
+    <main class="stack gap-16">
+      <section class="card">
+        <h2>Conexión</h2>
+        <div class="row">
+          <div class="stack">
+            <button id="btn-connect">Conectar</button>
+            <button id="btn-disconnect" class="btn-secondary">Desconectar</button>
+            <p class="muted">Broker: /ws • Topic: /topic/public • Send: /app/chat.sendMessage</p>
+          </div>
+          <div class="stack">
+            <label>Token (opcional para backend)
+              <textarea id="token" rows="4" placeholder="Se carga de localStorage"></textarea>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Enviar mensaje</h2>
+        <div class="row">
+          <div class="stack gap-12">
+            <label>Remitente
+              <input id="sender" placeholder="usuario" />
+            </label>
+            <label>Contenido
+              <input id="content" placeholder="Hola a todos" />
+            </label>
+            <label>Tipo
+              <select id="type">
+                <option value="CHAT">CHAT</option>
+                <option value="JOIN">JOIN</option>
+                <option value="LEAVE">LEAVE</option>
+              </select>
+            </label>
+            <label>Conversación (opcional)
+              <input id="conversationId" placeholder="uuid" />
+            </label>
+            <button id="btn-send">Enviar</button>
+          </div>
+          <pre id="log" style="overflow:auto;max-height:220px"></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">© EDA Bank</footer>
+  </div>
+
+  <script>
+    let stompClient = null;
+    const getToken = () => localStorage.getItem('token') || '';
+
+    const setConnected = (connected) => {
+      document.getElementById('btn-connect').disabled = connected;
+      document.getElementById('btn-disconnect').disabled = !connected;
+      document.getElementById('btn-send').disabled = !connected;
+    };
+
+    const log = (msg) => {
+      const p = document.getElementById('log');
+      p.textContent += (typeof msg === 'string' ? msg : JSON.stringify(msg)) + "\n";
+      p.scrollTop = p.scrollHeight;
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const t = getToken();
+      if (t) document.getElementById('token').value = t;
+
+      document.getElementById('btn-connect').onclick = () => {
+        const socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, (frame) => {
+          setConnected(true);
+          log('Conectado: ' + frame);
+          stompClient.subscribe('/topic/public', (message) => {
+            try { log(JSON.parse(message.body)); } catch(e) { log(message.body); }
+          });
+        }, (error) => {
+          log('Error conexión: ' + error);
+        });
+      };
+
+      document.getElementById('btn-disconnect').onclick = () => {
+        if (stompClient) {
+          stompClient.disconnect(() => setConnected(false));
+          log('Desconectado');
+        }
+      };
+
+      document.getElementById('btn-send').onclick = () => {
+        if (!stompClient) return alert('Conéctate primero');
+        const payload = {
+          sender: document.getElementById('sender').value.trim() || 'anon',
+          content: document.getElementById('content').value.trim() || '',
+          type: document.getElementById('type').value,
+          conversationId: document.getElementById('conversationId').value.trim() || null
+        };
+        stompClient.send('/app/chat.sendMessage', {}, JSON.stringify(payload));
+        log({ enviado: payload });
+      };
+    });
+  </script>
+</body>
+</html>

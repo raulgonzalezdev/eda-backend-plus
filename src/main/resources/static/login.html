@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EDA Bank • Login</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>EDA Bank</h1>
+      <p class="muted">Accede para gestionar usuarios, chat y pagos</p>
+      <nav class="nav">
+        <a href="/login.html">Login</a>
+        <a href="/users.html">Usuarios</a>
+        <a href="/chat.html">Chat</a>
+        <a href="/payments.html">Pagos y Transferencias</a>
+        <a href="/status.html">Estado</a>
+      </nav>
+    </header>
+
+    <main class="stack gap-16">
+      <section class="card">
+        <h2>Autenticación</h2>
+        <div class="row">
+          <div class="stack gap-12">
+            <label>Email
+              <input id="email" type="email" placeholder="user@dominio.com" />
+            </label>
+            <label>Contraseña
+              <input id="password" type="password" placeholder="••••••••" />
+            </label>
+            <div class="stack">
+              <button id="btn-login">Iniciar sesión</button>
+              <button id="btn-token" class="btn-secondary">Obtener token demo</button>
+            </div>
+          </div>
+          <div class="stack gap-12">
+            <label>Token actual
+              <textarea id="token" rows="6" placeholder="Se guarda en localStorage"></textarea>
+            </label>
+            <button id="btn-guardar-token">Guardar token</button>
+            <p class="muted">El token se usa para invocar endpoints protegidos.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Sesión</h2>
+        <div class="row">
+          <div class="stack">
+            <button id="btn-me">Ver perfil (GET /users/me)</button>
+          </div>
+          <pre id="me" style="overflow:auto;max-height:220px"></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">© EDA Bank</footer>
+  </div>
+
+  <script>
+    const API = '';
+    const jfetch = (url, opts={}) => fetch(API + url, opts).then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || r.statusText); }));
+    const setToken = (t) => { localStorage.setItem('token', t || ''); document.getElementById('token').value = t || ''; };
+    const getToken = () => localStorage.getItem('token') || '';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Cargar token si existe
+      const t = getToken();
+      if (t) document.getElementById('token').value = t;
+
+      document.getElementById('btn-guardar-token').onclick = () => {
+        setToken(document.getElementById('token').value.trim());
+        alert('Token guardado');
+      };
+
+      document.getElementById('btn-token').onclick = async () => {
+        try {
+          const d = await jfetch('/auth/token');
+          setToken(d.token || d.accessToken || d);
+          alert('Token demo obtenido');
+        } catch (e) { alert('Error token: ' + e.message); }
+      };
+
+      document.getElementById('btn-login').onclick = async () => {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        if (!email || !password) return alert('Completa email y contraseña');
+        try {
+          const d = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+          const res = await (d.headers.get('content-type')||'').includes('application/json') ? d.json() : d.text();
+          const token = (res && (res.token || res.accessToken)) || '';
+          if (!token) throw new Error(typeof res === 'string' ? res : 'No se recibió token');
+          setToken(token);
+          alert('Login correcto');
+        } catch (e) { alert('Error login: ' + e.message); }
+      };
+
+      document.getElementById('btn-me').onclick = async () => {
+        const t = getToken();
+        if (!t) return alert('Guarda un token primero');
+        try {
+          const d = await jfetch('/users/me', { headers: { Authorization: 'Bearer ' + t } });
+          document.getElementById('me').textContent = JSON.stringify(d, null, 2);
+        } catch (e) { alert('Error /users/me: ' + e.message); }
+      };
+    });
+  </script>
+</body>
+</html>

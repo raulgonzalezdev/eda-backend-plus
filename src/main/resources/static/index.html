@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EDA Demo · Front</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <!-- SockJS + STOMP para chat -->
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <script defer src="/main.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">💳 EDA Bank Demo</div>
+      <nav class="nav">
+        <a href="#home" data-nav>Inicio</a>
+        <a href="#users" data-nav class="hidden" id="navUsers">Usuarios</a>
+        <a href="#chat" data-nav class="hidden" id="navChat">Chat en vivo</a>
+      </nav>
+      <div class="auth-box">
+        <span id="authStatus" class="pill">anónimo</span>
+        <button class="btn" id="btnOpenAuth">Entrar / Registrar</button>
+        <button class="btn danger hidden" id="btnLogout">Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" id="routerView">
+    <!-- Home / Dashboard -->
+    <section id="view-home" data-view>
+      <div class="grid">
+        <div class="card">
+          <h2>Bienvenido</h2>
+          <p class="muted">Usa el botón "Entrar / Registrar" para iniciar sesión o crear una cuenta. Al validar, verás el tablero con opciones de <strong>Usuarios</strong> y <strong>Chat en vivo</strong>.</p>
+          <p class="muted">Backend activo vía NGINX en <code class="kbd">/api/*</code>, WebSocket en <code class="kbd">/ws</code>.</p>
+          <button class="btn primary" id="btnOpenAuth2">Entrar ahora</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Usuarios -->
+    <section id="view-users" data-view class="hidden">
+      <div class="grid">
+        <div class="card">
+          <h2>Listado</h2>
+          <div class="row">
+            <button class="btn" id="btnReloadUsers">Refrescar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Email</th><th>Nombre</th><th>Apellido</th><th>Rol</th><th>Acciones</th></tr></thead>
+              <tbody id="usersTbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Crear / Editar</h2>
+          <div class="row">
+            <label>Email <input id="userEmail" type="email" placeholder="usuario@demo.com" /></label>
+            <label>Contraseña <input id="userPass" type="password" placeholder="••••••••" /></label>
+          </div>
+          <div class="row">
+            <label>Nombre <input id="userFirst" type="text" /></label>
+            <label>Apellido <input id="userLast" type="text" /></label>
+            <label>Rol <input id="userRole" type="text" placeholder="PATIENT" /></label>
+          </div>
+          <input id="userId" type="hidden" />
+          <div class="row">
+            <button class="btn success" id="btnCreateUser">Crear</button>
+            <button class="btn" id="btnUpdateUser">Actualizar</button>
+            <button class="btn danger" id="btnClearUser">Limpiar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chat en vivo -->
+    <section id="view-chat" data-view class="hidden">
+      <div class="grid">
+        <div class="card">
+          <h2>Conversación</h2>
+          <div class="row">
+            <label>Seleccionar conversación
+              <select id="chatConvSelect"></select>
+            </label>
+            <button class="btn" id="btnReloadConvs">Refrescar</button>
+            <button class="btn success" id="btnUseConv">Usar</button>
+            <button class="btn" id="btnNewConv">Nueva conversación</button>
+            <button class="btn" id="btnCopyConv">Copiar ID</button>
+          </div>
+          <p class="muted">Conv ID actual: <span class="pill" id="currentConvLabel">-</span>. Abre otra ventana y selecciona la misma para chatear entre dos usuarios.</p>
+        </div>
+        <div class="card">
+          <h2>Usuarios</h2>
+          <div class="row">
+            <label>Seleccionar usuario
+              <select id="chatUserSelect"></select>
+            </label>
+            <button class="btn primary" id="btnConvWithUser">Crear conversación con usuario</button>
+          </div>
+          <p class="muted">Esto crea una conversación (JOIN) y fija el <code class="kbd">conversationId</code> para ambos clientes. Tema de WebSocket sigue siendo público (<code class="kbd">/topic/public</code>).</p>
+        </div>
+        <div class="card">
+          <h2>Conexión</h2>
+          <div>Estado: <span class="pill" id="chatConnState">desconectado</span></div>
+          <div class="row">
+            <button class="btn" id="btnChatConnect">Conectar</button>
+            <button class="btn danger" id="btnChatDisconnect" disabled>Desconectar</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Enviar mensaje</h2>
+          <div class="row">
+            <label>Contenido <input id="chatContent" type="text" value="Hola desde el navegador" /></label>
+            <label>Remitente <input id="chatSender" type="text" placeholder="auto: email logeado" /></label>
+            <label>Tipo
+              <select id="chatType">
+                <option>CHAT</option>
+                <option>JOIN</option>
+                <option>LEAVE</option>
+              </select>
+            </label>
+            <label>Conversation ID (opcional) <input id="chatConvId" type="number" /></label>
+          </div>
+          <button class="btn primary" id="btnChatSend" disabled>Enviar</button>
+        </div>
+        <div class="card">
+          <h2>Mensajes</h2>
+          <ul id="chatMessages" class="messages"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal Auth -->
+  <div id="authModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="authTitle">Acceso</h3>
+        <button class="icon-btn" id="btnCloseAuth">✕</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" id="tabLogin">Login</button>
+        <button class="tab" id="tabRegister">Registro</button>
+      </div>
+      <div class="modal-body">
+        <form id="formLogin" class="form-grid">
+          <label>Email <input id="loginEmail" type="email" required /></label>
+          <label>Contraseña <input id="loginPassword" type="password" required /></label>
+          <div class="actions">
+            <button type="button" class="btn primary" id="btnDoLogin">Entrar</button>
+            <button type="button" class="btn" id="btnDemoToken">Token demo</button>
+          </div>
+        </form>
+        <form id="formRegister" class="form-grid hidden">
+          <label>Email <input id="regEmail" type="email" required /></label>
+          <label>Contraseña <input id="regPassword" type="password" required /></label>
+          <label>Nombre <input id="regFirst" type="text" /></label>
+          <label>Apellido <input id="regLast" type="text" /></label>
+          <label>Rol <input id="regRole" type="text" placeholder="PATIENT" /></label>
+          <div class="actions">
+            <button type="button" class="btn success" id="btnDoRegister">Registrar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

@@ -1,0 +1,51 @@
+:root { --bg:#0f172a; --card:#0b132f; --muted:#94a3b8; --accent:#2563eb; --success:#16a34a; --danger:#ef4444; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; background:linear-gradient(180deg,#0b1229,#0f172a); color:#e5e7eb; }
+.container { max-width:1100px; margin:0 auto; padding:16px; }
+.site-header { position:sticky; top:0; backdrop-filter:saturate(180%) blur(6px); background:rgba(2,6,23,.7); border-bottom:1px solid #1f2937; }
+.header-inner { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.brand { font-weight:700; letter-spacing:.3px; }
+.nav a { color:#cbd5e1; text-decoration:none; padding:8px 12px; border-radius:8px; border:1px solid #1f2937; margin-right:6px; display:inline-block; }
+.nav a.active { background:linear-gradient(180deg,#111827,#0b1229); border-color:#334155; color:#fff; }
+.auth-box { display:flex; align-items:center; gap:8px; }
+.pill { display:inline-block; padding:5px 10px; border-radius:999px; background:#0a142b; border:1px solid #334155; color:#cbd5e1; font-size:.85rem; }
+.btn { display:inline-flex; align-items:center; gap:6px; border:1px solid #334155; background:#0b1229; color:#e5e7eb; padding:9px 12px; border-radius:10px; cursor:pointer; }
+.btn.primary { border-color:var(--accent); }
+.btn.success { border-color:var(--success); }
+.btn.danger { border-color:var(--danger); }
+.btn:disabled { opacity:.6; cursor:not-allowed; }
+.hidden { display:none !important; }
+
+.grid { display:grid; grid-template-columns: repeat(12, 1fr); gap:16px; }
+.card { grid-column: span 12; background:var(--card); border:1px solid #1f2937; border-radius:14px; padding:16px; box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset; }
+@media (min-width: 900px){ .card { grid-column: span 12; } }
+.row { display:flex; gap:10px; flex-wrap:wrap; }
+.row > * { flex:1; }
+.muted { color:var(--muted); font-size:.92rem; }
+.table-wrap { overflow:auto; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:10px; border-bottom:1px solid #1f2937; font-size:.93rem; }
+.kbd { background:#0a142b; border:1px solid #334155; padding:2px 6px; border-radius:6px; font-size:.82rem; color:#cbd5e1; }
+.messages { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; max-height:300px; overflow:auto; }
+.msg { padding:10px; border-radius:10px; border:1px solid #1f2937; background:#0a142b; }
+.msg .meta { font-size:.8rem; color:#94a3b8; margin-bottom:4px; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(2,6,23,.7); backdrop-filter: blur(3px); z-index: 1000; }
+.modal-content { width: 100%; max-width: 560px; background: var(--card); border: 1px solid #1f2937; border-radius: 14px; box-shadow: 0 10px 24px rgba(0,0,0,.3); }
+.modal-header { display:flex; align-items:center; justify-content:space-between; padding: 14px 16px; border-bottom:1px solid #1f2937; }
+.icon-btn { border:1px solid #334155; background:#0b1229; color:#e5e7eb; padding:6px 10px; border-radius:8px; cursor:pointer; }
+.tabs { display:flex; gap:8px; padding:12px 16px; border-bottom:1px solid #1f2937; }
+.tab { border:1px solid #334155; background:#0b1229; color:#cbd5e1; padding:8px 12px; border-radius:10px; cursor:pointer; }
+.tab.active { background:linear-gradient(180deg,#111827,#0b1229); border-color:#334155; color:#fff; }
+.modal-body { padding: 16px; }
+.form-grid { display:grid; grid-template-columns: 1fr; gap:12px; }
+.form-grid label { display:block; font-size:.93rem; }
+.form-grid input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #334155; background:#0a142b; color:#e5e7eb; }
+.actions { display:flex; gap:10px; margin-top:8px; }
+
+.toast { position: fixed; right: 16px; bottom: 16px; min-width: 240px; background: #222; color: #fff; padding: 10px 14px; border-radius: 6px; box-shadow: 0 10px 24px rgba(0,0,0,.18); opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 9999; }
+.toast.show { opacity: 0.98; transform: translateY(0); }
+.toast.success { background: #12633d; }
+.toast.error { background: #9b1d20; }
+.toast.info { background: #2b3a67; }

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Service Unavailable</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background: #0f172a; color: #e2e8f0; }
+      .wrap { max-width: 720px; margin: 8vh auto; padding: 24px; }
+      .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 24px; box-shadow: 0 6px 24px rgba(0,0,0,0.35); }
+      h1 { margin: 0 0 12px; font-size: 24px; }
+      p { margin: 0 0 12px; line-height: 1.6; }
+      code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
+      .muted { color: #94a3b8; }
+      .ok { color: #10b981; }
+      .warn { color: #f59e0b; }
+      .err { color: #ef4444; }
+      ul { margin: 10px 0; padding-left: 20px; }
+      li { margin: 6px 0; }
+      .footer { margin-top: 18px; font-size: 13px; color: #64748b; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>Backend temporarily unavailable</h1>
+        <p class="muted">NGINX could not reach the upstream application. This is usually a transient issue while services start up.</p>
+        <p class="mono">Status: <span class="err">502/503</span> from upstream</p>
+
+        <p>Quick checks you can perform:</p>
+        <ul>
+          <li>Confirm backend container is healthy: <span class="mono">docker ps</span> should show <span class="ok">healthy</span> for <span class="mono">eda-backend-app</span>.</li>
+          <li>Test directly inside backend: <span class="mono">docker exec eda-backend-app curl -s http://127.0.0.1:8080/api/health</span>.</li>
+          <li>Verify NGINX upstream resolves: <span class="mono">docker exec nginx-load-balancer getent hosts eda-backend-app</span>.</li>
+          <li>Check logs: <span class="mono">docker logs eda-backend-app --tail 200</span> and <span class="mono">docker logs nginx-load-balancer --tail 200</span>.</li>
+        </ul>
+
+        <p class="muted">This page is served by NGINX as a helpful fallback. Once the backend is ready, requests to <span class="mono">/api/*</span> will proxy through normally.</p>
+
+        <div class="footer">Powered by EDA Backend • NGINX Load Balancer</div>
+      </div>
+    </div>
+  </body>
+  </html>

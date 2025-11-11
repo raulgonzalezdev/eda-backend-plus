@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EDA Bank • Usuarios</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Usuarios</h1>
+      <nav class="nav">
+        <a href="/login.html">Login</a>
+        <a href="/users.html">Usuarios</a>
+        <a href="/chat.html">Chat</a>
+        <a href="/payments.html">Pagos y Transferencias</a>
+        <a href="/status.html">Estado</a>
+      </nav>
+    </header>
+
+    <main class="stack gap-16">
+      <section class="card">
+        <h2>Listado</h2>
+        <div class="row">
+          <div class="stack">
+            <button id="btn-list">Listar usuarios</button>
+          </div>
+          <div style="overflow:auto;max-height:320px">
+            <table class="table" id="tbl-users">
+              <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Acciones</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Crear / Editar</h2>
+        <div class="row">
+          <div class="stack gap-12">
+            <label>ID (para editar)
+              <input id="u-id" />
+            </label>
+            <label>Nombre
+              <input id="u-name" />
+            </label>
+            <label>Email
+              <input id="u-email" />
+            </label>
+            <label>Contraseña (solo crear o actualizar)
+              <input id="u-password" type="password" />
+            </label>
+            <div class="stack">
+              <button id="btn-create">Crear</button>
+              <button id="btn-update" class="btn-secondary">Actualizar</button>
+            </div>
+          </div>
+          <div class="stack">
+            <label>Token
+              <textarea id="token" rows="4" placeholder="Se carga de localStorage"></textarea>
+            </label>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">© EDA Bank</footer>
+  </div>
+
+  <script>
+    const API = '';
+    const getToken = () => localStorage.getItem('token') || '';
+    const jfetch = (url, opts={}) => fetch(API + url, opts).then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || r.statusText); }));
+    const authHeaders = () => ({ Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' });
+
+    const renderUsers = (list) => {
+      const tbody = document.querySelector('#tbl-users tbody');
+      tbody.innerHTML = '';
+      list.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${u.id ?? ''}</td><td>${u.name ?? ''}</td><td>${u.email ?? ''}</td>` +
+          `<td><button data-id="${u.id}" class="btn-del">Borrar</button></td>`;
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('.btn-del').forEach(btn => btn.onclick = async (ev) => {
+        const id = ev.target.getAttribute('data-id');
+        if (!confirm('¿Seguro de borrar ID ' + id + '?')) return;
+        try {
+          await fetch('/users/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + getToken() } });
+          alert('Usuario borrado');
+          loadUsers();
+        } catch (e) { alert('Error borrar: ' + e.message); }
+      });
+    };
+
+    const loadUsers = async () => {
+      try {
+        const d = await jfetch('/users', { headers: { Authorization: 'Bearer ' + getToken() } });
+        renderUsers(Array.isArray(d) ? d : (d.content ?? []));
+      } catch (e) { alert('Error listar: ' + e.message); }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const t = getToken();
+      if (t) document.getElementById('token').value = t;
+      document.getElementById('btn-list').onclick = loadUsers;
+
+      document.getElementById('btn-create').onclick = async () => {
+        const name = document.getElementById('u-name').value.trim();
+        const email = document.getElementById('u-email').value.trim();
+        const password = document.getElementById('u-password').value.trim();
+        if (!name || !email || !password) return alert('Completa nombre, email, contraseña');
+        try {
+          await fetch('/users', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name, email, password }) });
+          alert('Usuario creado');
+          loadUsers();
+        } catch (e) { alert('Error crear: ' + e.message); }
+      };
+
+      document.getElementById('btn-update').onclick = async () => {
+        const id = document.getElementById('u-id').value.trim();
+        const name = document.getElementById('u-name').value.trim();
+        const email = document.getElementById('u-email').value.trim();
+        const password = document.getElementById('u-password').value.trim();
+        if (!id) return alert('Proporciona ID');
+        try {
+          await fetch('/users/' + id, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name, email, password }) });
+          alert('Usuario actualizado');
+          loadUsers();
+        } catch (e) { alert('Error actualizar: ' + e.message); }
+      };
+    });
+  </script>
+</body>
+</html>

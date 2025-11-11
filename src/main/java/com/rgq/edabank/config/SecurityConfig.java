@@ -32,6 +32,8 @@ public class SecurityConfig {
         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
         // Páginas estáticas específicas
         .requestMatchers(HttpMethod.GET, "/", "/index.html", "/chat-test.html").permitAll()
+        // Registro de usuario (permitir crear cuenta sin JWT)
+        .requestMatchers(HttpMethod.POST, "/users").permitAll()
         // Handshake de WebSocket/SockJS
         .requestMatchers("/ws/**").permitAll()
         // Endpoints públicos existentes

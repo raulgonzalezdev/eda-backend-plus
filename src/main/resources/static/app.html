@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EDA Demo · Auth · Usuarios · Chat · Pagos</title>
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --accent:#22c55e; --accent2:#3b82f6; --danger:#ef4444; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background:linear-gradient(180deg,#0b1229,#0f172a); color:#e5e7eb; }
+    header { position:sticky; top:0; backdrop-filter:saturate(180%) blur(6px); background:rgba(2,6,23,.7); border-bottom:1px solid #1f2937; }
+    .wrap { max-width:1100px; margin:0 auto; padding:16px; }
+    .brand { display:flex; align-items:center; gap:8px; font-weight:700; letter-spacing:.3px; }
+    .nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+    .nav button { background:#0b1229; border:1px solid #1f2937; color:#cbd5e1; padding:8px 12px; border-radius:10px; cursor:pointer; }
+    .nav button.active { background:linear-gradient(180deg,#111827,#0b1229); border-color:#334155; color:#fff; }
+    main { padding:20px 0 60px; }
+    .grid { display:grid; grid-template-columns: repeat(12, 1fr); gap:16px; }
+    .card { grid-column: span 12; background:linear-gradient(180deg,#0b1229,#0b132f); border:1px solid #1f2937; border-radius:14px; padding:16px; box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset; }
+    @media (min-width: 900px){ .card.half { grid-column: span 6; } }
+    .card h2 { margin:0 0 12px; font-size:1.1rem; color:#fff; }
+    .muted { color:var(--muted); font-size:.92rem; }
+    label { display:block; margin:8px 0; font-size:.93rem; }
+    input, select, textarea { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #334155; background:#0a142b; color:#e5e7eb; }
+    textarea { min-height:92px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    .row > * { flex:1; }
+    .btn { display:inline-flex; align-items:center; gap:6px; border:1px solid #334155; background:#0b1229; color:#e5e7eb; padding:9px 12px; border-radius:10px; cursor:pointer; }
+    .btn.primary { border-color:#2563eb; background:linear-gradient(180deg,#0b1229,#0a1738); color:#fff; }
+    .btn.success { border-color:#16a34a; color:#dcfce7; }
+    .btn.danger { border-color:#ef4444; color:#fecaca; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:10px; border-bottom:1px solid #1f2937; font-size:.93rem; }
+    .pill { display:inline-block; padding:3px 8px; border-radius:999px; background:#0a142b; border:1px solid #334155; color:#cbd5e1; font-size:.82rem; }
+    .kbd { background:#0a142b; border:1px solid #334155; border-bottom-color:#1f2937; padding:2px 6px; border-radius:6px; font-size:.82rem; color:#cbd5e1; }
+    .messages { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; max-height:300px; overflow:auto; }
+    .msg { padding:10px; border-radius:10px; border:1px solid #1f2937; background:#0a142b; }
+    .msg .meta { font-size:.8rem; color:#94a3b8; margin-bottom:4px; }
+    .status-ok { color:#22c55e; }
+    .status-bad { color:#ef4444; }
+    footer { text-align:center; color:#94a3b8; padding:28px 0; border-top:1px solid #1f2937; }
+  </style>
+  <script>
+    const state = {
+      token: localStorage.getItem('jwt') || '',
+      stomp: null,
+      connected: false,
+      subscription: null,
+    };
+
+    const apiBase = window.location.origin; // NGINX (ej: http://localhost:8081)
+    const endpoints = {
+      login: '/auth/login',
+      demoToken: (user='demo-user', scope='alerts.read') => `/auth/token?sub=${encodeURIComponent(user)}&scope=${encodeURIComponent(scope)}`,
+      users: '/users',
+      chatWs: '/ws',
+      chatSend: '/app/chat.sendMessage',
+      chatTopic: '/topic/public',
+      health: '/api/health',
+      dbPing: '/db/ping',
+      publishPayment: '/events/payments',
+      publishTransfer: '/events/transfers',
+    };
+
+    function setToken(t){ state.token = t || ''; localStorage.setItem('jwt', state.token); document.getElementById('authToken').textContent = state.token? state.token : '(no hay token)'; const st=document.getElementById('authStatus'); st.textContent = state.token? 'autenticado' : 'anónimo'; st.className = state.token? 'pill status-ok' : 'pill'; }
+    function authHeaders(){ return state.token? { 'Authorization': 'Bearer '+state.token } : {}; }
+    async function jfetch(path, opts={}){ const res = await fetch(path, { ...opts, headers: { 'Content-Type':'application/json', ...(opts.headers||{}), ...authHeaders() }}); if(!res.ok){ const txt=await res.text(); throw new Error(`HTTP ${res.status}: ${txt}`); } const ct = res.headers.get('content-type')||''; return ct.includes('application/json')? res.json() : res.text(); }
+    function uuid(){ return (crypto && crypto.randomUUID)? crypto.randomUUID() : Math.random().toString(36).slice(2)+Date.now(); }
+
+    // UI navigation
+    function show(view){ document.querySelectorAll('[data-view]').forEach(v=>v.style.display='none'); document.querySelectorAll('[data-nav]').forEach(b=>b.classList.remove('active')); document.getElementById(view).style.display='block'; document.querySelector(`[data-nav="${view}"]`).classList.add('active'); }
+
+    // Auth
+    async function doLogin(){ const email = document.getElementById('loginEmail').value.trim(); const password = document.getElementById('loginPassword').value; try{ const out = await jfetch(endpoints.login, { method:'POST', body: JSON.stringify({ email, password })}); setToken(out.token); toast('Login correcto'); } catch(e){ toast('Login fallido: '+e.message, true); } }
+    async function getDemoToken(){ try{ const tok = await jfetch(endpoints.demoToken()); setToken(tok); toast('Token demo generado'); } catch(e){ toast('No se pudo generar token: '+e.message, true); } }
+
+    // Users CRUD
+    async function loadUsers(){ try{ const list = await jfetch(endpoints.users); const tbody = document.getElementById('usersTbody'); tbody.innerHTML = ''; list.forEach(u=>{ const tr=document.createElement('tr'); tr.innerHTML = `<td>${u.id||''}</td><td>${u.email||''}</td><td>${u.firstName||''}</td><td>${u.lastName||''}</td><td><span class="pill">${u.role||''}</span></td>`+`<td class="row">`+
+      `<button class="btn" onclick="editUser('${u.id}','${u.email||''}','${u.firstName||''}','${u.lastName||''}','${u.role||''}')">Editar</button>`+
+      `<button class="btn danger" onclick="deleteUser('${u.id}')">Borrar</button>`+
+      `</td>`; tbody.appendChild(tr); }); toast('Usuarios cargados'); } catch(e){ toast('Error al listar: '+e.message, true); } }
+    async function createUser(){ const email=val('userEmail'), firstName=val('userFirst'), lastName=val('userLast'), role=val('userRole'), password=val('userPass'); try{ const out = await jfetch(endpoints.users, { method:'POST', body: JSON.stringify({ email, firstName, lastName, role, password }) }); toast('Usuario creado'); clearUserForm(); loadUsers(); } catch(e){ toast('Error al crear: '+e.message, true); } }
+    function editUser(id,email,first,last,role){ set('userId', id); set('userEmail', email); set('userFirst', first); set('userLast', last); set('userRole', role); toast('Editando usuario '+email); }
+    async function updateUser(){ const id=val('userId'); const body = { email: val('userEmail'), firstName: val('userFirst'), lastName: val('userLast'), role: val('userRole'), password: val('userPass') }; try{ await jfetch(endpoints.users+'/'+id, { method:'PUT', body: JSON.stringify(body) }); toast('Usuario actualizado'); clearUserForm(); loadUsers(); } catch(e){ toast('Error al actualizar: '+e.message, true); } }
+    async function deleteUser(id){ if(!confirm('¿Borrar usuario?')) return; try{ await jfetch(endpoints.users+'/'+id, { method:'DELETE' }); toast('Usuario borrado'); loadUsers(); } catch(e){ toast('Error al borrar: '+e.message, true); } }
+    function clearUserForm(){ ['userId','userEmail','userFirst','userLast','userRole','userPass'].forEach(id=>set(id,'')); }
+
+    // Chat (STOMP over SockJS/WebSocket)
+    async function chatConnect(){ if(state.connected){ return toast('Ya conectado'); }
+      const url = endpoints.chatWs; const SockJSUrl = url; // NGINX proxied
+      let sock;
+      try {
+        sock = new SockJS(SockJSUrl);
+      } catch(err){
+        return toast('SockJS error: '+err.message, true);
+      }
+      const client = Stomp.over(sock);
+      client.debug = () => {};
+      client.connect(state.token? { Authorization: 'Bearer '+state.token } : {}, () => {
+        state.stomp = client; state.connected = true; document.getElementById('chatConnState').textContent = 'conectado'; document.getElementById('btnChatConnect').disabled = true; document.getElementById('btnChatDisconnect').disabled = false; document.getElementById('btnChatSend').disabled = false;
+        state.subscription = client.subscribe(endpoints.chatTopic, (frame) => { try{ const msg = JSON.parse(frame.body); addMessage(msg); } catch(e){ addMessage({ sender:'system', content:frame.body, type:'CHAT' }); } });
+        toast('Chat conectado');
+      }, (err) => { toast('Error de conexión: '+err, true); });
+    }
+    function chatDisconnect(){ try{ state.subscription && state.subscription.unsubscribe(); state.stomp && state.stomp.disconnect(()=>{}); } catch(_){} state.subscription=null; state.stomp=null; state.connected=false; document.getElementById('chatConnState').textContent='desconectado'; document.getElementById('btnChatConnect').disabled=false; document.getElementById('btnChatDisconnect').disabled=true; document.getElementById('btnChatSend').disabled=true; toast('Chat desconectado'); }
+    function addMessage(m){ const li=document.createElement('li'); li.className='msg'; const meta=`<div class="meta">${m.sender||'anon'} · conv ${m.conversationId||'-'} · ${m.type||'CHAT'}</div>`; li.innerHTML = meta + `<div>${escapeHtml(m.content||'')}</div>`; document.getElementById('chatMessages').prepend(li); }
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[c])); }
+    function chatSend(){ if(!state.stomp) return toast('No conectado', true); const content=val('chatContent')||'Hola'; const sender=val('chatSender')||'web'; const type=val('chatType')||'CHAT'; const convId = val('chatConvId')? Number(val('chatConvId')) : null; const payload={ content, sender, type, conversationId: convId }; state.stomp.send(endpoints.chatSend, authHeaders(), JSON.stringify(payload)); toast('Mensaje enviado'); }
+
+    // Pagos / Transferencias
+    async function sendPayment(){ const dto={ id: uuid(), type:'payment', amount: Number(val('payAmount')), currency: val('payCurrency')||'USD', accountId: val('payAccount')||'acc-001' }; try{ const out = await jfetch(endpoints.publishPayment, { method:'POST', body: JSON.stringify(dto) }); toast('Pago publicado: '+out); } catch(e){ toast('Error pago: '+e.message, true); } }
+    async function sendTransfer(){ const dto={ id: uuid(), type:'transfer', amount: Number(val('trAmount')), from: val('trFrom')||'acc-001', to: val('trTo')||'acc-002' }; try{ const out = await jfetch(endpoints.publishTransfer, { method:'POST', body: JSON.stringify(dto) }); toast('Transferencia publicada: '+out); } catch(e){ toast('Error transferencia: '+e.message, true); } }
+
+    // Estado
+    async function checkStatus(){ const health = await jfetch(endpoints.health).catch(e=>({ error:e.message })); const db = await jfetch(endpoints.dbPing).catch(e=>({ error:e.message })); document.getElementById('svcHealth').textContent = JSON.stringify(health); document.getElementById('dbPing').textContent = JSON.stringify(db); }
+
+    // Helpers UI
+    function val(id){ return document.getElementById(id).value; }
+    function set(id,v){ document.getElementById(id).value = v; }
+    function toast(msg, isErr){ const el=document.getElementById('toast'); el.textContent=msg; el.style.color = isErr? '#fecaca' : '#dcfce7'; el.style.background = isErr? 'rgba(239,68,68,.1)' : 'rgba(34,197,94,.1)'; el.style.borderColor = isErr? '#ef4444' : '#16a34a'; el.style.display='block'; clearTimeout(window.__toast); window.__toast = setTimeout(()=>{ el.style.display='none'; }, 3000); }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      setToken(state.token);
+      show('view-auth');
+      checkStatus();
+    });
+  </script>
+  <!-- SockJS + STOMP for chat -->
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="brand">💳 EDA Bank Demo · <span class="muted">Front de ejemplo</span></div>
+      <div id="toast" class="pill" style="display:none; border:1px solid; padding:8px 12px;"></div>
+      <div class="nav">
+        <button data-nav="view-auth" class="active" onclick="show('view-auth')">Auth</button>
+        <button data-nav="view-users" onclick="show('view-users'); loadUsers()">Usuarios</button>
+        <button data-nav="view-chat" onclick="show('view-chat')">Chat</button>
+        <button data-nav="view-payments" onclick="show('view-payments')">Pagos / Transferencias</button>
+        <button data-nav="view-status" onclick="show('view-status'); checkStatus()">Estado</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Auth -->
+    <section id="view-auth" data-view style="display:none;">
+      <div class="grid">
+        <div class="card half">
+          <h2>Iniciar sesión</h2>
+          <label>Email<input id="loginEmail" type="email" placeholder="usuario@demo.com" /></label>
+          <label>Contraseña<input id="loginPassword" type="password" placeholder="••••••••" /></label>
+          <div class="row">
+            <button class="btn primary" onclick="doLogin()">Entrar</button>
+            <button class="btn" onclick="getDemoToken()">Obtener token demo</button>
+          </div>
+          <p class="muted">El token se usa para acceder a endpoints protegidos como <code class="kbd">/users</code> y <code class="kbd">/events/*</code>.</p>
+        </div>
+        <div class="card half">
+          <h2>Sesión</h2>
+          <div>Estado: <span id="authStatus" class="pill">anónimo</span></div>
+          <div style="margin-top:8px; word-break: break-all;">Token: <code id="authToken" class="muted">(no hay token)</code></div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn" onclick="setToken('')">Cerrar sesión</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Usuarios CRUD -->
+    <section id="view-users" data-view style="display:none;">
+      <div class="grid">
+        <div class="card half">
+          <h2>Listado de usuarios</h2>
+          <table>
+            <thead><tr><th>ID</th><th>Email</th><th>Nombre</th><th>Apellido</th><th>Rol</th><th>Acciones</th></tr></thead>
+            <tbody id="usersTbody"></tbody>
+          </table>
+        </div>
+        <div class="card half">
+          <h2>Crear / Editar usuario</h2>
+          <label>ID<input id="userId" placeholder="(auto al editar)" /></label>
+          <label>Email<input id="userEmail" /></label>
+          <div class="row">
+            <label>Nombre<input id="userFirst" /></label>
+            <label>Apellido<input id="userLast" /></label>
+          </div>
+          <label>Rol<select id="userRole"><option value="USER">USER</option><option value="ADMIN">ADMIN</option></select></label>
+          <label>Contraseña<input id="userPass" type="password" placeholder="(solo crear/actualizar)" /></label>
+          <div class="row">
+            <button class="btn success" onclick="createUser()">Crear</button>
+            <button class="btn" onclick="updateUser()">Guardar cambios</button>
+            <button class="btn" onclick="clearUserForm()">Limpiar</button>
+          </div>
+          <p class="muted">Usa token válido. Si no tienes usuario, genera <span class="pill">token demo</span> y crea uno.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chat en tiempo real -->
+    <section id="view-chat" data-view style="display:none;">
+      <div class="grid">
+        <div class="card half">
+          <h2>Conexión</h2>
+          <div>Estado: <span id="chatConnState" class="pill">desconectado</span></div>
+          <div class="row" style="margin-top:10px;">
+            <button id="btnChatConnect" class="btn primary" onclick="chatConnect()">Conectar</button>
+            <button id="btnChatDisconnect" class="btn" onclick="chatDisconnect()" disabled>Desconectar</button>
+          </div>
+          <p class="muted">Se conecta a <code class="kbd">/ws</code>, escucha <code class="kbd">/topic/public</code> y envía a <code class="kbd">/app/chat.sendMessage</code>.</p>
+        </div>
+        <div class="card half">
+          <h2>Enviar mensaje</h2>
+          <label>Contenido<input id="chatContent" value="Hola desde el navegador" /></label>
+          <div class="row">
+            <label>Remitente<input id="chatSender" value="web" /></label>
+            <label>Tipo<select id="chatType"><option>CHAT</option><option>JOIN</option><option>LEAVE</option></select></label>
+          </div>
+          <label>Conversation ID (opcional)<input id="chatConvId" type="number" /></label>
+          <button id="btnChatSend" class="btn success" onclick="chatSend()" disabled>Enviar</button>
+        </div>
+        <div class="card">
+          <h2>Mensajes</h2>
+          <ul id="chatMessages" class="messages"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pagos / Transferencias -->
+    <section id="view-payments" data-view style="display:none;">
+      <div class="grid">
+        <div class="card half">
+          <h2>Publicar pago</h2>
+          <div class="row">
+            <label>Monto<input id="payAmount" type="number" step="0.01" value="100.00" /></label>
+            <label>Moneda<input id="payCurrency" value="USD" /></label>
+          </div>
+          <label>Cuenta<input id="payAccount" value="acc-001" /></label>
+          <button class="btn success" onclick="sendPayment()">Enviar pago</button>
+          <p class="muted">Endpoint: <code class="kbd">POST /events/payments</code> · requiere token.</p>
+        </div>
+        <div class="card half">
+          <h2>Publicar transferencia</h2>
+          <div class="row">
+            <label>Monto<input id="trAmount" type="number" step="0.01" value="75.00" /></label>
+            <label>Desde<input id="trFrom" value="acc-001" /></label>
+            <label>Hacia<input id="trTo" value="acc-002" /></label>
+          </div>
+          <button class="btn success" onclick="sendTransfer()">Enviar transferencia</button>
+          <p class="muted">Endpoint: <code class="kbd">POST /events/transfers</code> · requiere token.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Estado -->
+    <section id="view-status" data-view style="display:none;">
+      <div class="grid">
+        <div class="card half">
+          <h2>Servicio</h2>
+          <div><code id="svcHealth" class="muted">(cargando)</code></div>
+        </div>
+        <div class="card half">
+          <h2>Base de datos</h2>
+          <div><code id="dbPing" class="muted">(cargando)</code></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">Hecho con ❤️ para demos EDA · NGINX en <code>http://localhost:8081</code></div>
+  </footer>
+</body>
+</html>
