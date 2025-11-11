@@ -37,7 +37,7 @@ public class SecurityConfig {
         // Handshake de WebSocket/SockJS
         .requestMatchers("/ws/**").permitAll()
         // Endpoints públicos existentes
-        .requestMatchers("/auth/**", "/api/health", "/actuator/health", "/v3/api-docs", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+        .requestMatchers("/auth/**", "/api/health", "/actuator/health", "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
         .anyRequest().authenticated()
       )
       .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()));
