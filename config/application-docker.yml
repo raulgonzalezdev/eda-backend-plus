@@ -7,7 +7,7 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   kafka:
-    bootstrap-servers: kafka:9092,kafka2:9093,kafka3:9094
+    bootstrap-servers: kafka:9092
     properties:
       reconnect.backoff.ms: 1000
       reconnect.backoff.max.ms: 30000
@@ -15,21 +15,23 @@ spring:
       request.timeout.ms: 30000
       metadata.max.age.ms: 60000
     consumer:
-      # Deserializadores tolerantes, con delegados String/JSON
+      # Deserializadores tolerantes, con delegados String
       key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
-        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-        spring.json.trusted.packages: '*'
-        spring.json.use.type.headers: false
-        spring.json.value.default.type: java.util.Map
-      auto-offset-reset: latest
+        spring.deserializer.value.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
       enable-auto-commit: true
     listener:
       missing-topics-fatal: false
     streams:
+      # Aseguramos que Kafka Streams tenga application-id y bootstrap-servers
+      application-id: ${KAFKA_STREAMS_APP_ID:eda-alerts-app}
+      bootstrap-servers: kafka:9092
       properties:
+        auto.offset.reset: earliest
+        processing.guarantee: at_least_once
         reconnect.backoff.ms: 1000
         reconnect.backoff.max.ms: 30000
         retry.backoff.ms: 1000

@@ -264,57 +264,7 @@ services:
       retries: 20
       start_period: 120s
 
-  kafka2:
-    image: confluentinc/cp-kafka:7.4.0
-    container_name: kafka2
-    depends_on:
-      - zookeeper
-    ports:
-      - "9093:9093"
-    environment:
-      KAFKA_BROKER_ID: 2
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    volumes:
-      - kafka_data_2:/var/lib/kafka/data
-    networks:
-      - kafka-network
-    healthcheck:
-      test: ["CMD-SHELL", "cub kafka-ready 1 40 localhost:9093"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 120s
-
-  kafka3:
-    image: confluentinc/cp-kafka:7.4.0
-    container_name: kafka3
-    depends_on:
-      - zookeeper
-    ports:
-      - "9094:9094"
-    environment:
-      KAFKA_BROKER_ID: 3
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    volumes:
-      - kafka_data_3:/var/lib/kafka/data
-    networks:
-      - kafka-network
-    healthcheck:
-      test: ["CMD-SHELL", "cub kafka-ready 1 40 localhost:9094"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 120s
+  # (kafka2/kafka3 eliminados en stack simplificado)
 
   # ===== KAFKA TOPICS INITIALIZATION =====
   kafka-init:
@@ -322,25 +272,18 @@ services:
     container_name: kafka-init
     depends_on:
       - kafka
-      - kafka2
-      - kafka3
     networks:
       - kafka-network
     command: >
         bash -c "
-          echo 'Waiting for Kafka brokers to be healthy...';
-          cub kafka-ready 1 180 kafka:9092 && cub kafka-ready 1 180 kafka2:9093 && cub kafka-ready 1 180 kafka3:9094 || { echo 'Kafka not ready'; exit 1; }
+          echo 'Waiting for Kafka broker to be healthy...';
+          cub kafka-ready 1 180 kafka:9092 || { echo 'Kafka not ready'; exit 1; }
           echo 'Creating Kafka topics...';
-          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 1 || true
-          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 1 || true
-          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 1 || true
-          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic backend.events --partitions 1 --replication-factor 1 || true
-          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_config --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
-          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_offsets --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
-          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --create --if-not-exists --topic debezium_status --partitions 1 --replication-factor 1 --config cleanup.policy=compact || true
-          echo 'Topics created successfully!';
-          echo 'Listing all topics:';
-          kafka-topics --bootstrap-server kafka:9092,kafka2:9093,kafka3:9094 --list || true;
+          kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 1 || true
+          kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 1 || true
+          kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 1 || true
+          kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic backend.events --partitions 1 --replication-factor 1 || true
+          kafka-topics --bootstrap-server kafka:9092 --list || true;
           echo 'Topic creation completed. Container will exit.';
         "
     restart: "no"
@@ -399,12 +342,12 @@ services:
     image: nginx:alpine
     container_name: nginx-load-balancer
     depends_on:
-      - app1
-      - app2
-      - app3
+      app:
+        condition: service_healthy
     ports:
       - "80:80"
       - "8080:8080"
+      - "8081:8081"
       - "8090:8090"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -435,8 +378,7 @@ services:
     container_name: kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=changemeKBN
+      - ELASTICSEARCH_SERVICEACCOUNTTOKEN=AAEAAWVsYXN0aWMva2liYW5hL3Rva2VuX2tfUkVjSm9CNTdWV2lZN3U0ZDBoOkJYbDFWY0pGU2ZpTkJ2Q3U5Zm5mRWc
       - xpack.security.enabled=true
     ports:
       - "5601:5601"
@@ -457,6 +399,9 @@ services:
       - elasticsearch
     volumes:
       - ./config/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+    environment:
+      - OUTPUT_ELASTICSEARCH_USERNAME=elastic
+      - OUTPUT_ELASTICSEARCH_PASSWORD=changeme
     restart: unless-stopped
 
   # ===== UTILITY: FLYWAY CLI PARA REPAIR/INFO/MIGRATE =====
@@ -480,15 +425,11 @@ services:
     restart: unless-stopped
 
   # ===== EDA BACKEND APPLICATIONS =====
-  app1:
+  app:
     build: .
-    container_name: eda-backend-app1
+    container_name: eda-backend-app
     depends_on:
       kafka:
-        condition: service_started
-      kafka2:
-        condition: service_started
-      kafka3:
         condition: service_started
       haproxy:
         condition: service_started
@@ -498,6 +439,18 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - JWT_SECRET=${JWT_SECRET}
       - ALERT_THRESHOLD=100
+      - ENABLE_OTEL=true
+      # OpenTelemetry (dev): enviar OTLP al APM Server y usar Java agent
+      - JAVA_TOOL_OPTIONS=-javaagent:/opt/otel/opentelemetry-javaagent.jar
+      - OTEL_SERVICE_NAME=eda-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://apm-server:8200
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_TRACES_SAMPLER=always_on
+      - OTEL_TRACES_SAMPLER_ARG=1
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app1
+      - SPRING_KAFKA_STREAMS_PROPERTIES_PROCESSING_GUARANTEE=at_least_once
 
       # Forzar conexiones de escritura vía HAProxy (líder)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
@@ -522,8 +475,7 @@ services:
       - OTEL_TRACES_SAMPLER=always_on
       - OTEL_TRACES_SAMPLER_ARG=1
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app1
-    ports:
-      - "8081:8080"
+    # Exponer solo vía NGINX; evita acceso directo inconsistente por 8081
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"] # o wget -q --spider
       interval: 30s
@@ -536,116 +488,10 @@ services:
     restart: unless-stopped
 
 
-  app2:
-    build: .
-    container_name: eda-backend-app2
-    depends_on:
-      kafka:
-        condition: service_started
-      kafka2:
-        condition: service_started
-      kafka3:
-        condition: service_started
-      haproxy:
-        condition: service_started
-    env_file:
-      - .env
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
-      - JWT_SECRET=${JWT_SECRET}
-      - ALERT_THRESHOLD=100
-
-      # Forzar conexiones de escritura vía HAProxy (líder)
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
-      - SPRING_DATASOURCE_USERNAME=${DB_USER}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - SPRING_FLYWAY_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
-      - SPRING_FLYWAY_USER=${DB_USER}
-      - SPRING_FLYWAY_PASSWORD=${DB_PASSWORD}
-      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
-      - SPRING_FLYWAY_VALIDATE_ON_MIGRATE=false
-      - INSTANCE_ID=app2
-      # OpenTelemetry (dev): enviar OTLP al APM Server y usar Java agent
-      - JAVA_TOOL_OPTIONS=-javaagent:/opt/otel/opentelemetry-javaagent.jar
-      - OTEL_SERVICE_NAME=eda-backend
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://apm-server:8200
-      - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_LOGS_EXPORTER=otlp
-      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
-      - OTEL_TRACES_SAMPLER_ARG=1
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app2
-      - SERVER_ADDRESS=0.0.0.0
-      - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_CONFIG_ADDITIONAL_LOCATION=/app/config/application-docker.yml
-    ports:
-      - "8082:8080"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"] # o wget -q --spider
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    # Sin volúmenes locales: el agent está dentro de la imagen
-    networks:
-      - kafka-network
-    restart: unless-stopped
+  # eliminado app2 en stack simplificado
 
 
-  app3:
-    build: .
-    container_name: eda-backend-app3
-    depends_on:
-      kafka:
-        condition: service_started
-      kafka2:
-        condition: service_started
-      kafka3:
-        condition: service_started
-      haproxy:
-        condition: service_started
-    env_file:
-      - .env
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092,kafka2:9093,kafka3:9094
-      - JWT_SECRET=${JWT_SECRET}
-      - ALERT_THRESHOLD=100
-
-      # Forzar conexiones de escritura vía HAProxy (líder)
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?connectTimeout=5&socketTimeout=10&sslmode=disable
-      - SPRING_DATASOURCE_USERNAME=${DB_USER}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - SPRING_FLYWAY_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
-      - SPRING_FLYWAY_USER=${DB_USER}
-      - SPRING_FLYWAY_PASSWORD=${DB_PASSWORD}
-      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
-      - SPRING_FLYWAY_VALIDATE_ON_MIGRATE=false
-      - INSTANCE_ID=app3
-      # OpenTelemetry (dev): enviar OTLP al APM Server y usar Java agent
-      - JAVA_TOOL_OPTIONS=-javaagent:/opt/otel/opentelemetry-javaagent.jar
-      - OTEL_SERVICE_NAME=eda-backend
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://apm-server:8200
-      - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_LOGS_EXPORTER=otlp
-      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
-      - OTEL_TRACES_SAMPLER_ARG=1
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,instance.id=app3
-      - SERVER_ADDRESS=0.0.0.0
-      - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_CONFIG_ADDITIONAL_LOCATION=/app/config/application-docker.yml
-    ports:
-      - "8084:8080"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"] # o wget -q --spider
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    # Sin volúmenes locales: el agent está dentro de la imagen
-    networks:
-      - kafka-network
-    restart: unless-stopped
+  # eliminado app3 en stack simplificado
 
 
 volumes:
@@ -656,8 +502,7 @@ volumes:
   patroni_replica1_data:
   patroni_replica2_data:
   kafka_data_1:
-  kafka_data_2:
-  kafka_data_3:
+  # volúmenes eliminados para brokers secundarios
   es-data:
 
 networks:

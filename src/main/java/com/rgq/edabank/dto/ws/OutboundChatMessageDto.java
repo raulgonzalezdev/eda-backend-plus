@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @NoArgsConstructor
@@ -16,5 +16,5 @@ public class OutboundChatMessageDto {
     private String sender;
     private String type; // CHAT | JOIN | LEAVE
     private Long conversationId;
-    private LocalDateTime sentAt;
+    private OffsetDateTime sentAt;
 }

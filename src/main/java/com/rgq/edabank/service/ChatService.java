@@ -13,11 +13,15 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Service
 public class ChatService {
+    private static final Logger log = LoggerFactory.getLogger(ChatService.class);
 
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
@@ -34,7 +38,8 @@ public class ChatService {
     @Value("${app.kafka.topics.chat}")
     private String chatTopic;
 
-    public void sendMessage(InboundChatMessageDto input) {
+    public Long sendMessage(InboundChatMessageDto input) {
+        log.info("[CHAT] Enviando mensaje: sender={}, type={}, convId={}", input.getSender(), input.getType(), input.getConversationId());
         Long convId = input.getConversationId();
         Conversation conversation = null;
         if (convId != null) {
@@ -65,14 +70,17 @@ public class ChatService {
                 .sender(input.getSender())
                 .type(type)
                 .conversationId(conversation.getId())
-                .sentAt(now)
+                .sentAt(OffsetDateTime.now())
                 .build();
 
         kafkaTemplate.send(chatTopic, event);
+        log.info("[CHAT] Mensaje publicado en Kafka topic={} convId={}", chatTopic, conversation.getId());
+        return conversation.getId();
     }
 
-    @KafkaListener(topics = "${app.kafka.topics.chat}", groupId = "chat")
+    @KafkaListener(topics = "${app.kafka.topics.chat}", groupId = "chat-ui", containerFactory = "jsonKafkaListenerContainerFactory")
     public void listen(ChatMessage chatMessage) {
+        log.info("[CHAT] Consumido de Kafka: sender={}, type={}, convId={}", chatMessage.getSender(), chatMessage.getType(), chatMessage.getConversationId());
         OutboundChatMessageDto out = OutboundChatMessageDto.builder()
                 .content(chatMessage.getContent())
                 .sender(chatMessage.getSender())
@@ -81,5 +89,6 @@ public class ChatService {
                 .sentAt(chatMessage.getSentAt())
                 .build();
         messagingTemplate.convertAndSend("/topic/public", out);
+        log.info("[CHAT] Emitido por WebSocket a /topic/public: sender={} convId={}", chatMessage.getSender(), chatMessage.getConversationId());
     }
 }

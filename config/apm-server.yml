@@ -9,8 +9,8 @@ queue: {}
 output.elasticsearch:
   hosts: ["http://elasticsearch:9200"]
   protocol: "http"
-  username: "apm_writer"
-  password: "changemeAPMWRITER"
+  username: "elastic"
+  password: "changeme"
 
 logging:
   level: info

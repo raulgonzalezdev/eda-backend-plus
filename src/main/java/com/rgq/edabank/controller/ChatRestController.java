@@ -3,15 +3,21 @@ package com.rgq.edabank.controller;
 import com.rgq.edabank.dto.ConversationDto;
 import com.rgq.edabank.dto.MessageDto;
 import com.rgq.edabank.mappers.ChatMapper;
+import com.rgq.edabank.dto.ws.InboundChatMessageDto;
+import com.rgq.edabank.service.ChatService;
 import com.rgq.edabank.repository.ConversationRepository;
 import com.rgq.edabank.repository.MessageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -23,6 +29,9 @@ public class ChatRestController {
 
     @Autowired
     private MessageRepository messageRepository;
+
+    @Autowired
+    private ChatService chatService;
 
     @GetMapping("/conversations")
     public List<ConversationDto> getConversations() {
@@ -44,5 +53,14 @@ public class ChatRestController {
         // This is a simplified implementation. In a real application, you would
         // want to add pagination and proper error handling.
         return ChatMapper.toDto(messageRepository.findByConversationId(id));
+    }
+
+    @PostMapping("/send")
+    public ResponseEntity<Map<String, Object>> send(@RequestBody InboundChatMessageDto input) {
+        Long conversationId = chatService.sendMessage(input);
+        return ResponseEntity.accepted().body(Map.of(
+                "status", "accepted",
+                "conversationId", conversationId
+        ));
     }
 }

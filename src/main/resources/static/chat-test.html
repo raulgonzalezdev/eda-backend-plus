@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prueba de Chat (WebSocket + STOMP)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 20px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .card { border: 1px solid #ddd; border-radius: 6px; padding: 12px; flex: 1; min-width: 300px; }
+    label { display:block; margin-top:8px; font-size: 0.9rem; }
+    input, select, textarea { width: 100%; padding: 6px; margin-top:4px; }
+    button { padding: 8px 12px; margin-right: 8px; }
+    #status { margin: 8px 0; }
+    #messages { list-style: none; padding: 0; }
+    #messages li { border-bottom: 1px dashed #ccc; padding: 6px 0; }
+    code { background: #f6f8fa; padding: 2px 4px; border-radius: 4px; }
+    .toast { position: fixed; right: 16px; bottom: 16px; min-width: 240px; background: #222; color: #fff; padding: 10px 14px; border-radius: 6px; box-shadow: 0 10px 24px rgba(0,0,0,.18); opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 9999; }
+    .toast.show { opacity: 0.98; transform: translateY(0); }
+    .toast.success { background: #12633d; }
+    .toast.error { background: #9b1d20; }
+    .toast.info { background: #2b3a67; }
+  </style>
+  <!-- SockJS y STOMP desde CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+  <h1>Prueba de Chat</h1>
+  <p>Conecta al endpoint WebSocket <code>/ws</code>, suscríbete a <code>/topic/public</code> y envía mensajes a <code>/app/chat.sendMessage</code>.</p>
+
+  <div class="card">
+    <h2>Conexión</h2>
+    <label>JWT (opcional)
+      <input id="jwt" type="text" placeholder="Bearer token" />
+    </label>
+    <div id="status">Estado: <strong id="connState">desconectado</strong> · <span id="statusMsg"></span></div>
+    <button id="btnConnect">Conectar</button>
+    <button id="btnDisconnect" disabled>Desconectar</button>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>Enviar mensaje</h2>
+      <label>Contenido
+        <input id="content" type="text" value="Hola desde el navegador" />
+      </label>
+      <label>Remitente
+        <input id="sender" type="text" value="webtester" />
+      </label>
+      <label>Tipo
+        <select id="type">
+          <option>CHAT</option>
+          <option>JOIN</option>
+          <option>LEAVE</option>
+        </select>
+      </label>
+      <label>Conversation ID (opcional)
+        <input id="conversationId" type="number" />
+      </label>
+      <button id="btnSend" disabled>Enviar</button>
+    </div>
+
+    <div class="card">
+      <h2>Mensajes recibidos</h2>
+      <div style="margin:4px 0 8px; font-size:.9rem; color:#555;">Enviados: <strong id="sentCount">0</strong> · Recibidos: <strong id="recvCount">0</strong></div>
+      <ul id="messages"></ul>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    let stompClient = null;
+    let sockRef = null;
+    let reconnectTimerRef = null;
+    let reconnecting = false;
+    let reconnectDelayMs = 2000;
+    const reconnectMaxMs = 30000;
+    let pendingPayload = null;
+    let autoTokenFetched = false;
+    let sentCounter = 0;
+    let recvCounter = 0;
+    const statusMsgEl = document.getElementById('statusMsg');
+    const toastEl = document.getElementById('toast');
+    const sentCountEl = document.getElementById('sentCount');
+    const recvCountEl = document.getElementById('recvCount');
+
+    function showStatus(message, kind = 'info') {
+      if (!statusMsgEl) return;
+      statusMsgEl.textContent = message;
+      statusMsgEl.style.color = (kind === 'error') ? '#b00020' : (kind === 'success' ? '#0c7' : '#444');
+    }
+
+    function showToast(message, kind = 'info') {
+      if (!toastEl) return;
+      toastEl.className = 'toast ' + kind;
+      toastEl.textContent = message;
+      toastEl.classList.add('show');
+      setTimeout(() => toastEl.classList.remove('show'), 2200);
+    }
+
+    function updateCounters() {
+      if (sentCountEl) sentCountEl.textContent = String(sentCounter);
+      if (recvCountEl) recvCountEl.textContent = String(recvCounter);
+    }
+
+    function setConnected(connected) {
+      document.getElementById('connState').textContent = connected ? 'conectado' : 'desconectado';
+      document.getElementById('btnConnect').disabled = connected;
+      document.getElementById('btnDisconnect').disabled = !connected;
+      document.getElementById('btnSend').disabled = !connected;
+      showStatus(connected ? 'Conexión establecida' : 'Conexión cerrada');
+    }
+
+    function scheduleReconnect(reason) {
+      reconnecting = true;
+      showStatus(`Reconectando… (${reason})`, 'info');
+      showToast('Reconectando…', 'info');
+      document.getElementById('btnSend').disabled = true;
+      if (reconnectTimerRef) clearTimeout(reconnectTimerRef);
+      reconnectTimerRef = setTimeout(() => {
+        connect();
+        reconnectDelayMs = Math.min(reconnectDelayMs * 2, reconnectMaxMs);
+      }, reconnectDelayMs);
+    }
+
+    async function connect() {
+      // Reiniciar flags de reconexión
+      if (!reconnecting) reconnectDelayMs = 2000;
+      // Fuerza transporte WebSocket para evitar problemas con proxies en fallbacks
+      sockRef = new SockJS('/ws', null, { transports: ['websocket'] });
+      stompClient = Stomp.over(sockRef);
+      stompClient.debug = function () {}; // silenciar logs
+      stompClient.enableReceipt = true; // permitir recibos de servidor para SEND
+      // Heartbeat para mantener viva la conexión
+      try {
+        stompClient.heartbeat = stompClient.heartbeat || {};
+        stompClient.heartbeat.outgoing = 20000; // cada 20s
+        stompClient.heartbeat.incoming = 0;     // deshabilitar check estricto
+      } catch (_) {}
+      stompClient.onreceipt = function (frame) {
+        // Respuesta de recibo del servidor (ACK al SEND)
+        showStatus('Mensaje aceptado por el servidor', 'success');
+        showToast('Mensaje enviado', 'success');
+        sentCounter += 1; updateCounters();
+        document.getElementById('btnSend').disabled = false;
+      };
+
+      const jwt = document.getElementById('jwt').value.trim();
+      const connectHeaders = {};
+      if (jwt) {
+        connectHeaders['Authorization'] = jwt.startsWith('Bearer ') ? jwt : ('Bearer ' + jwt);
+      }
+
+      stompClient.connect(connectHeaders, function (frame) {
+        setConnected(true);
+        reconnecting = false;
+        if (reconnectTimerRef) { clearTimeout(reconnectTimerRef); reconnectTimerRef = null; }
+        reconnectDelayMs = 2000;
+        // Suscripción al topic público
+        stompClient.subscribe('/topic/public', function (message) {
+          const body = JSON.parse(message.body);
+          const li = document.createElement('li');
+          li.textContent = `[${body.type || 'CHAT'}] ${body.sender || ''}: ${body.content || ''} (convId=${body.conversationId || '-'})`;
+          document.getElementById('messages').appendChild(li);
+          showStatus('Mensaje recibido en el cliente');
+          showToast('Nuevo mensaje recibido', 'info');
+          recvCounter += 1; updateCounters();
+        });
+
+        // Si había un envío pendiente por desconexión, reintenta automáticamente
+        if (pendingPayload) {
+          try {
+            const headers = {};
+            const jwt2 = document.getElementById('jwt').value.trim();
+            if (jwt2) headers['Authorization'] = jwt2.startsWith('Bearer ') ? jwt2 : ('Bearer ' + jwt2);
+            headers['receipt'] = 'send-' + Date.now();
+            showStatus('Reconectado. Reenviando mensaje pendiente…');
+            showToast('Reenviando mensaje…', 'info');
+            stompClient.send('/app/chat.sendMessage', headers, JSON.stringify(pendingPayload));
+            pendingPayload = null;
+          } catch (e) {
+            showStatus('Fallo al reenviar tras reconexión: ' + (e.message || e), 'error');
+            showToast('Fallo al reenviar', 'error');
+            // mantiene pendingPayload para próximo intento
+          }
+        }
+      }, function (error) {
+        const msg = (typeof error === 'string') ? error : (error?.body || JSON.stringify(error));
+        setConnected(false);
+        showStatus('Error de conexión: ' + msg, 'error');
+        showToast('Error de conexión', 'error');
+        scheduleReconnect('error');
+      });
+
+      // Detectar cierre del socket y disparar reconexión
+      if (sockRef && typeof sockRef.onclose === 'function') {
+        const prev = sockRef.onclose;
+        sockRef.onclose = function () {
+          try { prev.apply(this, arguments); } catch (_) {}
+          setConnected(false);
+          scheduleReconnect('cierre');
+        };
+      }
+    }
+
+    function disconnect() {
+      if (stompClient) {
+        if (reconnectTimerRef) { clearTimeout(reconnectTimerRef); reconnectTimerRef = null; }
+        reconnecting = false;
+        pendingPayload = null;
+        try {
+          stompClient.disconnect(function () {
+            setConnected(false);
+          });
+        } catch (_) {
+          setConnected(false);
+        }
+      }
+    }
+
+    function sendMessage() {
+      const payload = {
+        content: document.getElementById('content').value,
+        sender: document.getElementById('sender').value,
+        type: document.getElementById('type').value,
+      };
+      const convIdRaw = document.getElementById('conversationId').value;
+      if (convIdRaw) {
+        payload.conversationId = Number(convIdRaw);
+      }
+      // Si no está conectado, preparar reconexión y enviar cuando reconecte
+      if (!stompClient || !stompClient.connected) {
+        pendingPayload = payload;
+        document.getElementById('btnSend').disabled = true;
+        showStatus('No conectado. Intentando reconectar para enviar…', 'error');
+        showToast('Reconectando para enviar…', 'info');
+        scheduleReconnect('envío');
+        return;
+      }
+
+      const headers = {};
+      const jwt = document.getElementById('jwt').value.trim();
+      if (jwt) {
+        headers['Authorization'] = jwt.startsWith('Bearer ') ? jwt : ('Bearer ' + jwt);
+      }
+      // Solicitar recibo para confirmar aceptación del servidor
+      headers['receipt'] = 'send-' + Date.now();
+      document.getElementById('btnSend').disabled = true;
+      showStatus('Enviando mensaje...');
+      showToast('Enviando...', 'info');
+      try {
+        stompClient.send('/app/chat.sendMessage', headers, JSON.stringify(payload));
+      } catch (e) {
+        document.getElementById('btnSend').disabled = false;
+        showStatus('Fallo al enviar: ' + (e.message || e), 'error');
+        showToast('Fallo al enviar', 'error');
+      }
+    }
+
+    document.getElementById('btnConnect').addEventListener('click', connect);
+    document.getElementById('btnDisconnect').addEventListener('click', disconnect);
+    document.getElementById('btnSend').addEventListener('click', sendMessage);
+
+    // Auto‑generar token y conectar al cargar la página
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/auth/token?sub=webtester&scope=USER', { method: 'GET' });
+        if (res.ok) {
+          const tokenText = await res.text();
+          const token = tokenText.replace(/\n/g, '').trim();
+          document.getElementById('jwt').value = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
+          autoTokenFetched = true;
+        }
+      } catch (e) {
+        console.warn('No se pudo obtener el token automáticamente:', e);
+      }
+      // Intentar conectar automáticamente
+      connect();
+    });
+  </script>
+</body>
+</html>

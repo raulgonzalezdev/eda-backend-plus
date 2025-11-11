@@ -33,6 +33,14 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA pos TO sas_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA pos GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO sas_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA pos GRANT USAGE, SELECT ON SEQUENCES TO sas_user;
 
+-- === Grants para el esquema public (necesarios para migraciones en public) ===
+-- Nota: algunos entornos dejan el esquema public con permisos restringidos;
+-- aseguramos que el usuario de la app pueda crear objetos allí.
+GRANT USAGE ON SCHEMA public TO sas_user;
+GRANT CREATE ON SCHEMA public TO sas_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO sas_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO sas_user;
+
 -- Otorgar privilegio CREATE sobre la base de datos actual a sas_user
 DO $$
 DECLARE dbname text := current_database();

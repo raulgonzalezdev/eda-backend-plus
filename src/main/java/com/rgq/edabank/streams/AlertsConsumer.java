@@ -17,7 +17,7 @@ public class AlertsConsumer {
         this.alertsRepo = alertsRepo;
     }
 
-    @KafkaListener(topics = "alerts.suspect", groupId = "alerts-persist-group")
+    @KafkaListener(topics = "alerts.suspect", groupId = "alerts-persist-group", containerFactory = "stringKafkaListenerContainerFactory")
     public void onMessage(ConsumerRecord<String, String> record) {
         try {
             System.out.println("=== RECIBIENDO MENSAJE DE KAFKA ====");

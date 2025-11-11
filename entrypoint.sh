@@ -51,12 +51,12 @@ wait_tcp "haproxy" 5000 "Postgres via HAProxy" || true
 
 # Esperar Kafka al menos broker principal
 wait_tcp "kafka" 9092 "Kafka broker kafka" || true
-# Intentar también los otros brokers si existen
-wait_tcp "kafka2" 9093 "Kafka broker kafka2" || true
-wait_tcp "kafka3" 9094 "Kafka broker kafka3" || true
+# En stack simplificado no hay brokers secundarios
 
-# Esperar APM Server (OTLP HTTP)
-wait_http "${OTEL_EXPORTER_OTLP_ENDPOINT}" "APM Server" || true
+# Esperar APM Server (OTLP HTTP) solo si OTEL está habilitado
+if [ "$ENABLE_OTEL" = "true" ]; then
+  wait_http "${OTEL_EXPORTER_OTLP_ENDPOINT}" "APM Server" || true
+fi
 
 if [ "$ENABLE_OTEL" = "true" ] && [ -f "$JAVA_AGENT" ]; then
   JAVA_OPTS="${JAVA_OPTS} -javaagent:${JAVA_AGENT}"
