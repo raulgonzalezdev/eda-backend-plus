@@ -20,14 +20,12 @@ function Get-CurrentMaster {
 function Test-Applications {
     Write-Host "Probando aplicaciones durante failover..." -ForegroundColor Cyan
     
-    for ($i = 1; $i -le 3; $i++) {
-        $port = 9083 + $i
-        try {
-            $response = Invoke-WebRequest -Uri "http://localhost:$port/actuator/health" -UseBasicParsing -TimeoutSec 5
-            Write-Host "APP$i (puerto $port): ACTIVA - Status: $($response.StatusCode)" -ForegroundColor Green
-        } catch {
-            Write-Host "APP$i (puerto $port): Error de conexion" -ForegroundColor Red
-        }
+    $port = 8081
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:$($port)/actuator/health" -UseBasicParsing -TimeoutSec 5
+        Write-Host "APP (puerto $port): ACTIVA - Status: $($response.StatusCode)" -ForegroundColor Green
+    } catch {
+        Write-Host "APP (puerto $port): Error de conexion" -ForegroundColor Red
     }
 }
 

@@ -2,7 +2,7 @@
 # Autor: Sistema EDA Backend Plus
 
 param(
-    [string]$LoadBalancerUrl = "http://localhost:8085",
+    [string]$LoadBalancerUrl = "http://localhost:8081",
     [int]$TestRequests = 20,
     [int]$DelayBetweenRequests = 100
 )
@@ -64,8 +64,7 @@ function Test-HealthCheck {
     Write-Host "`n=== PROBANDO HEALTH CHECKS ===" -ForegroundColor Cyan
     
     $healthUrls = @(
-        "$BaseUrl/api/health",
-        "$BaseUrl/health"
+        "$BaseUrl/actuator/health"
     )
     
     foreach ($url in $healthUrls) {
@@ -89,7 +88,7 @@ function Test-LoadDistribution {
     )
     
     Write-Host "`n=== PROBANDO DISTRIBUCIÓN DE CARGA ===" -ForegroundColor Cyan
-    Write-Host "Enviando $RequestCount peticiones a $BaseUrl/api/health" -ForegroundColor Yellow
+    Write-Host "Enviando $RequestCount peticiones a $BaseUrl/actuator/health" -ForegroundColor Yellow
     
     $serverCounts = @{}
     $successCount = 0
@@ -98,7 +97,7 @@ function Test-LoadDistribution {
     for ($i = 1; $i -le $RequestCount; $i++) {
         Write-Progress -Activity "Enviando peticiones" -Status "Petición $i de $RequestCount" -PercentComplete (($i / $RequestCount) * 100)
         
-        $result = Invoke-HttpRequest -Url "$BaseUrl/api/health"
+        $result = Invoke-HttpRequest -Url "$BaseUrl/actuator/health"
         
         if ($result.Success) {
             $successCount++
@@ -146,7 +145,7 @@ function Test-Failover {
     
     # Probar conectividad inicial
     Write-Host "`nProbando conectividad inicial..." -ForegroundColor Yellow
-    $result = Invoke-HttpRequest -Url "$BaseUrl/api/health"
+    $result = Invoke-HttpRequest -Url "$BaseUrl/actuator/health"
     if ($result.Success) {
         Write-Host "✓ Conectividad inicial OK" -ForegroundColor Green
     } else {
@@ -165,7 +164,7 @@ function Test-Failover {
         
         # Probar conectividad después del fallo
         Write-Host "Probando conectividad después del fallo..." -ForegroundColor Yellow
-        $result = Invoke-HttpRequest -Url "$BaseUrl/api/health"
+        $result = Invoke-HttpRequest -Url "$BaseUrl/actuator/health"
         if ($result.Success) {
             Write-Host "✓ Failover exitoso - El sistema sigue funcionando" -ForegroundColor Green
         } else {
@@ -182,7 +181,7 @@ function Test-Failover {
         
         # Verificar recuperación
         Write-Host "Verificando recuperación..." -ForegroundColor Yellow
-        $result = Invoke-HttpRequest -Url "$BaseUrl/api/health"
+        $result = Invoke-HttpRequest -Url "$BaseUrl/actuator/health"
         if ($result.Success) {
             Write-Host "✓ Recuperación exitosa" -ForegroundColor Green
         } else {
@@ -214,7 +213,7 @@ function Start-LoadBalancerTest {
     }
     
     if (-not $allRunning) {
-        Write-Host "`n⚠️  Algunos contenedores no están ejecutándose. Continuando con las pruebas..." -ForegroundColor Yellow
+        Write-Host "`nADVERTENCIA: Algunos contenedores no están ejecutándose. Continuando con las pruebas..." -ForegroundColor Yellow
     }
     
     # Ejecutar pruebas

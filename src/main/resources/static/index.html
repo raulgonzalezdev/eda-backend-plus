@@ -18,6 +18,7 @@
         <a href="#home" data-nav>Inicio</a>
         <a href="#users" data-nav class="hidden" id="navUsers">Usuarios</a>
         <a href="#chat" data-nav class="hidden" id="navChat">Chat en vivo</a>
+        <a href="#events" data-nav class="hidden" id="navEvents">Eventos</a>
       </nav>
       <div class="auth-box">
         <span id="authStatus" class="pill">anónimo</span>
@@ -72,6 +73,47 @@
             <button class="btn" id="btnUpdateUser">Actualizar</button>
             <button class="btn danger" id="btnClearUser">Limpiar</button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Eventos (pagos y transferencias) -->
+    <section id="view-events" data-view class="hidden">
+      <div class="grid">
+        <div class="card">
+          <h2>Publicar Pago</h2>
+          <p class="muted">Envía un evento de pago para activar el pipeline de alertas si supera el umbral.</p>
+          <div class="row">
+            <label>Monto <input id="payAmount" type="number" step="0.01" value="15000" /></label>
+          </div>
+          <div class="row">
+            <button class="btn primary" id="btnSendPayment">Enviar pago</button>
+          </div>
+          <pre id="payResp" class="muted" style="white-space:pre-wrap"></pre>
+        </div>
+        <div class="card">
+          <h2>Publicar Transferencia</h2>
+          <p class="muted">Envía un evento de transferencia; también puede generar alerta si supera el umbral.</p>
+          <div class="row">
+            <label>Monto <input id="transAmount" type="number" step="0.01" value="115000" /></label>
+          </div>
+          <div class="row">
+            <button class="btn" id="btnSendTransfer">Enviar transferencia</button>
+          </div>
+          <pre id="transResp" class="muted" style="white-space:pre-wrap"></pre>
+        </div>
+        <div class="card">
+          <h2>Ver Alertas</h2>
+          <div class="row">
+            <button class="btn" id="btnViewAlertsKafka">Leer Kafka (/alerts)</button>
+            <button class="btn" id="btnViewAlertsDb">Leer BD (/alerts-db)</button>
+          </div>
+          <pre id="alertsOut" class="muted" style="white-space:pre-wrap"></pre>
+        </div>
+        <div class="card">
+          <h2>Historial de publicaciones</h2>
+          <p class="muted">Últimas acciones realizadas desde esta vista.</p>
+          <ul id="eventsHistory" class="messages"></ul>
         </div>
       </div>
     </section>

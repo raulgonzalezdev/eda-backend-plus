@@ -248,6 +248,30 @@ Navegación rápida: [Volver al README](../README.md) · [Índice de docs](index
 
 Además, el endpoint `/api/health` añade el header `X-Upstream-Server` para diagnosticar qué instancia respondió.
 
+## Interpretación rápida de HAProxy (PostgreSQL)
+
+Esta guía complementa la sección de resiliencia de base de datos y explica cómo leer la página de estadísticas de HAProxy cuando se usa Patroni para gestionar roles de Postgres.
+
+### Puertos y reglas por listener
+- `master (5000)`: solo el líder debe aparecer `UP`. Réplicas aparecerán `DOWN` aquí por no cumplir el rol de escritura.
+- `replicas (5001)`: solo réplicas deben aparecer `UP`. El líder aparecerá `DOWN` aquí por no cumplir el rol de lectura.
+- `postgres-cluster (5002)`: los tres nodos deben estar `UP` si el API de Patroni responde al check `/health`; indica salud general del clúster.
+
+### Cómo leer columnas clave
+- `Status`: estado del servidor para ese backend. `UP` significa que cumple el rol del listener; `DOWN` suele significar “rol no apto para este listener”, no un fallo del nodo.
+- `LastChk`: busca `L7STS/200` (check HTTP pasó) o `L7STS/503` (check no cumplido). `503` en `master` para una réplica es esperado; en `postgres-cluster` ahora debe ser `200` en todos si `/health` responde.
+- `Act/Bck`: distingue servidores activos vs. de respaldo según la config. Útil para ver si algún nodo está marcado como backup.
+
+### Consejos de visualización
+- Usa “Hide DOWN servers” en la página de stats para ver solo los que aplican al listener.
+- Para salud global, revisa `postgres-cluster :5002` y confirma `UP` en los tres nodos.
+
+### Verificación rápida con `psql`
+- Escritura (líder): `psql -h localhost -p 5000 -U <usuario> -d <db> -c "create table if not exists lb_probe(x int);"`
+- Lectura (réplica): `psql -h localhost -p 5001 -U <usuario> -d <db> -c "select now();"`
+
+Más detalles: consulta `docs/database-resilience.md`.
+
 ## 🎯 Beneficios Implementados
 
 1. **Alta Disponibilidad**: Si una instancia falla, las otras continúan funcionando

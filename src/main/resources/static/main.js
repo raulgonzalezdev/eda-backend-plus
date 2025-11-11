@@ -13,6 +13,9 @@ const endpoints = {
   login: '/auth/login',
   demoToken: (user='demo-user', scope='alerts.read') => `/auth/token?sub=${encodeURIComponent(user)}&scope=${encodeURIComponent(scope)}`,
   users: '/users',
+  // Endpoints de eventos sin prefijo /api porque el backend los expone en raíz
+  eventsPayments: '/events/payments',
+  eventsTransfers: '/events/transfers',
   chatWs: '/ws',
   chatSend: '/app/chat.sendMessage',
   chatTopic: '/topic/public',
@@ -26,7 +29,7 @@ async function jfetch(path, opts={}){ const res = await fetch(path, { ...opts, h
 function showToast(message, kind = 'info') { const toastEl = document.getElementById('toast'); if (!toastEl) return; toastEl.className = 'toast ' + kind; toastEl.textContent = message; toastEl.classList.add('show'); setTimeout(() => toastEl.classList.remove('show'), 2200); }
 function setToken(t){ state.token = t || ''; localStorage.setItem('jwt', state.token); const st = document.getElementById('authStatus'); st.textContent = state.token? 'autenticado' : 'anónimo'; st.className = 'pill' + (state.token? ' status-ok' : ''); // intentar extraer email del token
   try { const payload = JSON.parse(atob((t||'').split('.')[1]||'')); state.userEmail = payload.sub || null; } catch(_) { state.userEmail = null; } updateNavForAuth(); }
-function updateNavForAuth(){ const authed = !!state.token; document.getElementById('navUsers').classList.toggle('hidden', !authed); document.getElementById('navChat').classList.toggle('hidden', !authed); document.getElementById('btnLogout').classList.toggle('hidden', !authed); }
+function updateNavForAuth(){ const authed = !!state.token; document.getElementById('navUsers').classList.toggle('hidden', !authed); document.getElementById('navChat').classList.toggle('hidden', !authed); document.getElementById('navEvents').classList.toggle('hidden', !authed); document.getElementById('btnLogout').classList.toggle('hidden', !authed); }
 function routeTo(view){ document.querySelectorAll('[data-view]').forEach(v=>v.classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); document.querySelectorAll('nav .nav a').forEach(a=>a.classList.toggle('active', a.getAttribute('href')==='#'+view)); }
 
 // Modal auth
@@ -53,6 +56,87 @@ async function deleteUser(id){ if(!confirm('¿Borrar usuario?')) return; try{ aw
 function clearUserForm(){ ['userId','userEmail','userFirst','userLast','userRole','userPass'].forEach(id=>set(id,'')); }
 function val(id){ return document.getElementById(id).value; }
 function set(id,v){ document.getElementById(id).value = v; }
+
+// Utilidades
+function guid(){ return (crypto && crypto.randomUUID)? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)); }
+
+// Historial y render amigable
+const eventsHistory = [];
+function fmtTime(ms){ try{ const d=new Date(ms); return d.toLocaleString(); } catch(_){ return String(ms); } }
+function addHistory(entry){ const e={...entry, time: Date.now()}; eventsHistory.unshift(e); if(eventsHistory.length>20) eventsHistory.length=20; renderHistory(); }
+function renderHistory(){ const el=document.getElementById('eventsHistory'); if(!el) return; el.innerHTML = eventsHistory.map(h=>{
+  const kind = h.kind || h.type || h.source || 'evento';
+  const details = [
+    (h.amount!=null? `monto: ${h.amount}`:''),
+    (h.count!=null? `items: ${h.count}`:''),
+    (h.id? `id: ${String(h.id).slice(0,8)}`:''),
+  ].filter(Boolean).join(' · ');
+  return `<li class="msg"><div class="meta">${fmtTime(h.time)} · ${kind}</div><div>${details||'-'}</div></li>`;
+}).join(''); }
+
+function pick(obj, ...paths){ for(const p of paths){ const v = p.split('.').reduce((acc,k)=> acc&&acc[k], obj); if(v!=null) return v; } return undefined; }
+function renderAlerts(containerId, res){ const el=document.getElementById(containerId); if(!el) return;
+  const arr = Array.isArray(res)? res : (res && Array.isArray(res.items)? res.items : []);
+  if(arr.length===0){ el.innerHTML = '<div class="muted">(sin resultados)</div>'; return; }
+  const html = '<ul class="messages">'+arr.map(a=>{
+    const kind = a.type || a.alertType || a.eventType || 'alerta';
+    const amount = pick(a,'amount','payload.amount','details.amount');
+    const ts = pick(a,'timestamp','ts','time','payload.timestamp');
+    const id = pick(a,'id','alertId','key');
+    const userId = pick(a,'userId','payload.userId');
+    const source = pick(a,'source','topic');
+    const meta = [kind, (amount!=null? `monto: ${amount}`:''), (userId? `userId: ${String(userId).slice(0,8)}`:''), (id? `id: ${String(id).slice(0,8)}`:''), (source? `src: ${source}`:''), (ts? fmtTime((String(ts).length>10? Number(ts) : Number(ts)*1000)) : '')].filter(Boolean).join(' · ');
+    return `<li class="msg"><div class="meta">${meta}</div></li>`;
+  }).join('')+'</ul>';
+  el.innerHTML = html;
+}
+
+// Eventos: pagos y transferencias
+async function sendPaymentEvent(){
+  const amount = Number(document.getElementById('payAmount').value || '0');
+  const body = { id: guid(), userId: guid(), amount, type: 'payment', timestamp: Math.floor(Date.now()/1000) };
+  try{
+    const res = await jfetch(endpoints.eventsPayments, { method:'POST', body: JSON.stringify(body) });
+    showToast('Pago publicado','success');
+    const outEl = document.getElementById('payResp'); outEl.textContent = typeof res === 'string'? res : JSON.stringify(res);
+    addHistory({ kind:'pago', amount, id: body.id });
+  } catch(e){ showToast('Error publicando pago: '+e.message,'error'); }
+}
+
+async function sendTransferEvent(){
+  const amount = Number(document.getElementById('transAmount').value || '0');
+  const body = { id: guid(), userId: guid(), amount, type: 'transfer', timestamp: Math.floor(Date.now()/1000) };
+  try{
+    const res = await jfetch(endpoints.eventsTransfers, { method:'POST', body: JSON.stringify(body) });
+    showToast('Transferencia publicada','success');
+    const outEl = document.getElementById('transResp'); outEl.textContent = typeof res === 'string'? res : JSON.stringify(res);
+    addHistory({ kind:'transferencia', amount, id: body.id });
+  } catch(e){ showToast('Error publicando transferencia: '+e.message,'error'); }
+}
+
+async function viewAlertsKafka(){
+  try{
+    let res = await jfetch('/alerts?timeoutMs=5000');
+    // Si viene vacío, reintentar una vez para permitir la asignación de particiones
+    if(Array.isArray(res) && res.length === 0){
+      res = await jfetch('/alerts?timeoutMs=8000');
+    }
+    renderAlerts('alertsOut', res);
+    const arr = Array.isArray(res)? res : (res && Array.isArray(res.items)? res.items : []);
+    addHistory({ type:'leer-alertas', source:'kafka', count: arr.length });
+    showToast('Kafka leído','info');
+  } catch(e){ showToast('Error leyendo Kafka: '+e.message,'error'); }
+}
+
+async function viewAlertsDb(){
+  try{
+    const res = await jfetch('/alerts-db');
+    renderAlerts('alertsOut', res);
+    const arr = Array.isArray(res)? res : (res && Array.isArray(res.items)? res.items : []);
+    addHistory({ type:'leer-alertas', source:'bd', count: arr.length });
+    showToast('BD leída','info');
+  } catch(e){ showToast('Error leyendo BD: '+e.message,'error'); }
+}
 
 // Chat
 function addMessage(m){
@@ -185,6 +269,7 @@ window.addEventListener('DOMContentLoaded', () => {
       routeTo(view);
       if(view==='users') { loadUsers(); }
       if(view==='chat') { loadConversations(); loadChatUsers(); }
+      // eventos no necesitan precarga, solo handlers
     });
   });
 
@@ -230,4 +315,10 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnNewConv').addEventListener('click', createConversation);
   document.getElementById('btnConvWithUser').addEventListener('click', createConversationWithUser);
   document.getElementById('btnCopyConv').addEventListener('click', copyCurrentConvId);
+
+  // Eventos
+  const btnPay = document.getElementById('btnSendPayment'); if(btnPay) btnPay.addEventListener('click', sendPaymentEvent);
+  const btnTrans = document.getElementById('btnSendTransfer'); if(btnTrans) btnTrans.addEventListener('click', sendTransferEvent);
+  const btnAlertsKafka = document.getElementById('btnViewAlertsKafka'); if(btnAlertsKafka) btnAlertsKafka.addEventListener('click', viewAlertsKafka);
+  const btnAlertsDb = document.getElementById('btnViewAlertsDb'); if(btnAlertsDb) btnAlertsDb.addEventListener('click', viewAlertsDb);
 });

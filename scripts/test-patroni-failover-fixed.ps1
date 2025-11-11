@@ -20,14 +20,12 @@ function Get-CurrentMaster {
 function Test-Applications {
     Write-Host "Probando aplicaciones durante failover..." -ForegroundColor Cyan
     
-    for ($i = 1; $i -le 3; $i++) {
-        $port = 9083 + $i
-        try {
-            $response = Invoke-WebRequest -Uri "http://localhost:$port/actuator/health" -UseBasicParsing -TimeoutSec 5
-            Write-Host "APP$i (puerto $port): ACTIVA - Status: $($response.StatusCode)" -ForegroundColor Green
-        } catch {
-            Write-Host "APP$i (puerto $port): Error - $($_.Exception.Message)" -ForegroundColor Red
-        }
+    $port = 8081
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:$($port)/actuator/health" -UseBasicParsing -TimeoutSec 5
+        Write-Host "APP (puerto $port): ACTIVA - Status: $($response.StatusCode)" -ForegroundColor Green
+    } catch {
+        Write-Host "APP (puerto $port): Error - $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 
@@ -50,7 +48,7 @@ try {
     docker stop $initialMaster
     Write-Host "Contenedor $initialMaster detenido" -ForegroundColor Green
 } catch {
-    Write-Host "Error deteniendo $initialMaster: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Error deteniendo ${initialMaster}: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
@@ -75,7 +73,7 @@ try {
     docker start $initialMaster
     Write-Host "Contenedor $initialMaster iniciado" -ForegroundColor Green
 } catch {
-    Write-Host "Error iniciando $initialMaster: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Error iniciando ${initialMaster}: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 Write-Host "`n8. Esperando reintegracion del nodo (30 segundos)..." -ForegroundColor Yellow

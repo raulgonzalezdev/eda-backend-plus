@@ -2,7 +2,44 @@
 # Autor: EDA Backend Team
 # Fecha: $(Get-Date)
 
-Write-Host "🚀 Iniciando pruebas del cluster Patroni + etcd..." -ForegroundColor Green
+# === Cargar variables desde .env y .env.local ===
+function Load-EnvFile {
+    param([string]$Path)
+    $vars = @{}
+    if (Test-Path $Path) {
+        Get-Content -LiteralPath $Path | ForEach-Object {
+            $line = $_.Trim()
+            if ($line -and -not $line.StartsWith('#')) {
+                $idx = $line.IndexOf('=')
+                if ($idx -gt 0) {
+                    $key = $line.Substring(0, $idx).Trim()
+                    $val = $line.Substring($idx + 1).Trim().Trim('"')
+                    $vars[$key] = $val
+                }
+            }
+        }
+    }
+    return $vars
+}
+
+$Root = Split-Path $PSScriptRoot -Parent
+$envMain = Load-EnvFile (Join-Path $Root '.env')
+$envLocal = Load-EnvFile (Join-Path $Root '.env.local')
+
+# Merge: .env primero, .env.local sobrescribe
+$envMap = $envMain.Clone()
+foreach ($k in $envLocal.Keys) { $envMap[$k] = $envLocal[$k] }
+
+# Variables de BD
+$DB_NAME = $envMap['DB_NAME']; if (-not $DB_NAME) { $DB_NAME = 'sasdatqbox' }
+$DB_USER = $envMap['DB_USER']; if (-not $DB_USER) { $DB_USER = 'sas_user' }
+$DB_PASSWORD = $envMap['DB_PASSWORD']; if (-not $DB_PASSWORD) { $DB_PASSWORD = $envMap['POSTGRES_PASSWORD'] }
+$DB_WRITE_HOST = $envMap['DB_WRITE_HOST']; if (-not $DB_WRITE_HOST) { $DB_WRITE_HOST = 'haproxy' }
+$DB_WRITE_PORT = $envMap['DB_WRITE_PORT']; if (-not $DB_WRITE_PORT) { $DB_WRITE_PORT = 5000 }
+$DB_READ_HOST = $envMap['DB_READ_HOST']; if (-not $DB_READ_HOST) { $DB_READ_HOST = 'haproxy' }
+$DB_READ_PORT = $envMap['DB_READ_PORT']; if (-not $DB_READ_PORT) { $DB_READ_PORT = 5001 }
+
+Write-Host "Iniciando pruebas del cluster Patroni + etcd..." -ForegroundColor Green
 
 # Función para verificar estado de servicios
 function Test-ServiceHealth {
@@ -11,35 +48,33 @@ function Test-ServiceHealth {
     try {
         $response = Invoke-WebRequest -Uri $Url -Method GET -TimeoutSec 10
         if ($response.StatusCode -eq $ExpectedStatus) {
-            Write-Host "✅ $ServiceName: OK (Status: $($response.StatusCode))" -ForegroundColor Green
+            Write-Host ("OK " + $ServiceName + " (Status: " + $response.StatusCode + ")") -ForegroundColor Green
             return $true
         } else {
-            Write-Host "⚠️ $ServiceName: Unexpected status $($response.StatusCode)" -ForegroundColor Yellow
+            Write-Host ("WARN " + $ServiceName + " (Unexpected status " + $response.StatusCode + ")") -ForegroundColor Yellow
             return $false
         }
     } catch {
-        Write-Host "❌ $ServiceName: ERROR - $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host ("ERROR " + $ServiceName + " - " + $_.Exception.Message) -ForegroundColor Red
         return $false
     }
 }
 
 # Función para probar conexión a base de datos
 function Test-DatabaseConnection {
-    param($Host, $Port, $Database, $Username, $Password, $Name)
+    param($DbHost, $DbPort, $DbName, $DbUser, $DbPassword, $Name)
     
     try {
-        $connectionString = "Host=$Host;Port=$Port;Database=$Database;Username=$Username;Password=$Password;Timeout=10;"
-        # Simulamos la conexión (en un entorno real usarías Npgsql)
-        Write-Host "🔍 Probando conexión a $Name ($Host:$Port)..."
+        Write-Host ("Probando conexion a " + $Name + " (" + $DbHost + ":" + $DbPort + ")...")
         
-        # Usar docker exec para probar la conexión
-        $result = docker exec patroni-master psql -h $Host -p $Port -U $Username -d $Database -c "SELECT 1;" 2>&1
-        
+        # Usar docker exec con PGPASSWORD para autenticar sin prompt
+        $result = docker exec -e PGPASSWORD=$DbPassword patroni-master psql -h $DbHost -p $DbPort -U $DbUser -d $DbName -t -A -c "SELECT current_user, inet_server_addr(), inet_server_port(), pg_is_in_recovery();" 2>&1
+
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "✅ $Name: Conexión exitosa" -ForegroundColor Green
+            Write-Host "✅ $Name: Conexión exitosa -> $result" -ForegroundColor Green
             return $true
         } else {
-            Write-Host "❌ $Name: Error de conexión" -ForegroundColor Red
+            Write-Host "❌ $Name: Error de conexión -> $result" -ForegroundColor Red
             return $false
         }
     } catch {
@@ -48,73 +83,69 @@ function Test-DatabaseConnection {
     }
 }
 
-Write-Host "`n📊 1. Verificando estado de etcd cluster..." -ForegroundColor Cyan
+Write-Host "`n1) Verificando estado de etcd cluster..." -ForegroundColor Cyan
 $etcdHealthy = $true
 $etcdHealthy = $etcdHealthy -and (Test-ServiceHealth "etcd1" "http://localhost:2379/health")
 
-Write-Host "`n📊 2. Verificando estado de Patroni nodes..." -ForegroundColor Cyan
+Write-Host "`n2) Verificando estado de Patroni nodes..." -ForegroundColor Cyan
 $patroniHealthy = $true
 $patroniHealthy = $patroniHealthy -and (Test-ServiceHealth "Patroni Master" "http://localhost:8008/")
 $patroniHealthy = $patroniHealthy -and (Test-ServiceHealth "Patroni Replica1" "http://localhost:8009/")
 $patroniHealthy = $patroniHealthy -and (Test-ServiceHealth "Patroni Replica2" "http://localhost:8010/")
 
-Write-Host "`n📊 3. Verificando HAProxy..." -ForegroundColor Cyan
+Write-Host "`n3) Verificando HAProxy..." -ForegroundColor Cyan
 $haproxyHealthy = Test-ServiceHealth "HAProxy Stats" "http://localhost:7000/"
 
-Write-Host "`n📊 4. Verificando cluster status..." -ForegroundColor Cyan
+Write-Host "`n4) Verificando cluster status..." -ForegroundColor Cyan
 try {
-    Write-Host "🔍 Estado del cluster Patroni:"
+    Write-Host "Estado del cluster Patroni:"
     docker exec patroni-master patronictl -c /etc/patroni/patroni.yml list
 } catch {
-    Write-Host "❌ Error obteniendo estado del cluster: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ("Error obteniendo estado del cluster: " + $_.Exception.Message) -ForegroundColor Red
 }
 
-Write-Host "`n📊 5. Probando conexiones a base de datos..." -ForegroundColor Cyan
+Write-Host "`n5) Probando conexiones a base de datos..." -ForegroundColor Cyan
 $dbHealthy = $true
-# Probar conexión al Master (escritura)
-Write-Host "🔍 Probando Master (puerto 5000 via HAProxy)..."
-$dbHealthy = $dbHealthy -and (Test-DatabaseConnection "localhost" "5000" "sasdatqbox" "sas_user" "ML!gsx90l02" "Master via HAProxy")
+# Probar conexión al Master (escritura) vía HAProxy dentro de la red docker
+Write-Host ("Probando Master (puerto " + $DB_WRITE_PORT + " via HAProxy)...")
+$dbHealthy = $dbHealthy -and (Test-DatabaseConnection $DB_WRITE_HOST $DB_WRITE_PORT $DB_NAME $DB_USER $DB_PASSWORD "Master via HAProxy")
 
 # Probar conexión a Replicas (lectura)
-Write-Host "🔍 Probando Replicas (puerto 5001 via HAProxy)..."
-$dbHealthy = $dbHealthy -and (Test-DatabaseConnection "localhost" "5001" "sasdatqbox" "sas_user" "ML!gsx90l02" "Replicas via HAProxy")
+Write-Host ("Probando Replicas (puerto " + $DB_READ_PORT + " via HAProxy)...")
+$dbHealthy = $dbHealthy -and (Test-DatabaseConnection $DB_READ_HOST $DB_READ_PORT $DB_NAME $DB_USER $DB_PASSWORD "Replicas via HAProxy")
 
-Write-Host "`n📊 6. Probando aplicaciones EDA Backend..." -ForegroundColor Cyan
+Write-Host "`n6) Probando aplicación EDA Backend (puerto fijo 8081)..." -ForegroundColor Cyan
 $appsHealthy = $true
-$appsHealthy = $appsHealthy -and (Test-ServiceHealth "APP1 Patroni" "http://localhost:8080/actuator/health")
-$appsHealthy = $appsHealthy -and (Test-ServiceHealth "APP2 Patroni" "http://localhost:8081/actuator/health")
-$appsHealthy = $appsHealthy -and (Test-ServiceHealth "APP3 Patroni" "http://localhost:8082/actuator/health")
+$appsHealthy = $appsHealthy -and (Test-ServiceHealth "APP Patroni" "http://localhost:8081/actuator/health")
 
-Write-Host "`n📊 7. Probando generación de tokens..." -ForegroundColor Cyan
+Write-Host "`n7) Probando generación de tokens..." -ForegroundColor Cyan
 try {
-    $tokenResponse = Invoke-RestMethod -Uri "http://localhost:8080/api/auth/login" -Method POST -ContentType "application/json" -Body '{"username": "patroni_test_user", "password": "password123"}'
-    Write-Host "✅ Token generado exitosamente: $($tokenResponse.token.Substring(0,20))..." -ForegroundColor Green
+    $tokenResponse = Invoke-RestMethod -Uri "http://localhost:8081/api/auth/login" -Method POST -ContentType "application/json" -Body '{"username": "patroni_test_user", "password": "password123"}'
+    Write-Host ("Token generado exitosamente: " + $tokenResponse.token.Substring(0,20) + "...") -ForegroundColor Green
 } catch {
-    Write-Host "❌ Error generando token: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ("Error generando token: " + $_.Exception.Message) -ForegroundColor Red
 }
 
 # Resumen final
-Write-Host "`n🎯 RESUMEN DE PRUEBAS:" -ForegroundColor Magenta
+Write-Host "`nRESUMEN DE PRUEBAS:" -ForegroundColor Magenta
 Write-Host "================================" -ForegroundColor Magenta
-Write-Host "etcd Cluster: $(if($etcdHealthy){'✅ OK'}else{'❌ FAIL'})" -ForegroundColor $(if($etcdHealthy){'Green'}else{'Red'})
-Write-Host "Patroni Nodes: $(if($patroniHealthy){'✅ OK'}else{'❌ FAIL'})" -ForegroundColor $(if($patroniHealthy){'Green'}else{'Red'})
-Write-Host "HAProxy: $(if($haproxyHealthy){'✅ OK'}else{'❌ FAIL'})" -ForegroundColor $(if($haproxyHealthy){'Green'}else{'Red'})
-Write-Host "Database Connections: $(if($dbHealthy){'✅ OK'}else{'❌ FAIL'})" -ForegroundColor $(if($dbHealthy){'Green'}else{'Red'})
-Write-Host "EDA Applications: $(if($appsHealthy){'✅ OK'}else{'❌ FAIL'})" -ForegroundColor $(if($appsHealthy){'Green'}else{'Red'})
+Write-Host "etcd Cluster: $(if($etcdHealthy){'OK'}else{'FAIL'})" -ForegroundColor $(if($etcdHealthy){'Green'}else{'Red'})
+Write-Host "Patroni Nodes: $(if($patroniHealthy){'OK'}else{'FAIL'})" -ForegroundColor $(if($patroniHealthy){'Green'}else{'Red'})
+Write-Host "HAProxy: $(if($haproxyHealthy){'OK'}else{'FAIL'})" -ForegroundColor $(if($haproxyHealthy){'Green'}else{'Red'})
+Write-Host "Database Connections: $(if($dbHealthy){'OK'}else{'FAIL'})" -ForegroundColor $(if($dbHealthy){'Green'}else{'Red'})
+Write-Host "EDA Applications: $(if($appsHealthy){'OK'}else{'FAIL'})" -ForegroundColor $(if($appsHealthy){'Green'}else{'Red'})
 
 $overallHealth = $etcdHealthy -and $patroniHealthy -and $haproxyHealthy -and $dbHealthy -and $appsHealthy
 
 if ($overallHealth) {
-    Write-Host "`n🎉 ¡CLUSTER PATRONI FUNCIONANDO CORRECTAMENTE!" -ForegroundColor Green
-    Write-Host "🔗 Accesos disponibles:" -ForegroundColor Cyan
-    Write-Host "   • Master DB (escritura): localhost:5000" -ForegroundColor White
-    Write-Host "   • Replicas DB (lectura): localhost:5001" -ForegroundColor White
+    Write-Host "`nCLUSTER PATRONI FUNCIONANDO CORRECTAMENTE!" -ForegroundColor Green
+    Write-Host "Accesos disponibles:" -ForegroundColor Cyan
+    Write-Host ("   • Master DB (escritura): " + $DB_WRITE_HOST + ":" + $DB_WRITE_PORT) -ForegroundColor White
+    Write-Host ("   • Replicas DB (lectura): " + $DB_READ_HOST + ":" + $DB_READ_PORT) -ForegroundColor White
     Write-Host "   • HAProxy Stats: http://localhost:7000" -ForegroundColor White
-    Write-Host "   • APP1: http://localhost:8080" -ForegroundColor White
-    Write-Host "   • APP2: http://localhost:8081" -ForegroundColor White
-    Write-Host "   • APP3: http://localhost:8082" -ForegroundColor White
+    Write-Host "   • APP: http://localhost:8081" -ForegroundColor White
 } else {
-    Write-Host "`n⚠️ ALGUNOS SERVICIOS PRESENTAN PROBLEMAS" -ForegroundColor Yellow
+    Write-Host "`nALGUNOS SERVICIOS PRESENTAN PROBLEMAS" -ForegroundColor Yellow
     Write-Host "Revisa los logs de los servicios que fallaron." -ForegroundColor Yellow
 }
 
