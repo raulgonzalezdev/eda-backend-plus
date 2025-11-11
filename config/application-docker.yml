@@ -45,3 +45,7 @@ app:
   jwt:
     secret: secret
     expiration: 86400
+
+springdoc:
+  swagger-ui:
+    persist-authorization: true
