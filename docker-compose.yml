@@ -245,6 +245,7 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -264,6 +265,37 @@ services:
       retries: 20
       start_period: 120s
 
+  # ===== KAFKA UI: KAFDROP =====
+  kafdrop:
+    image: obsidiandynamics/kafdrop:4.0.2
+    container_name: kafdrop
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKERCONNECT: kafka:9092
+      JVM_OPTS: -Xms128M -Xmx512M
+      SERVER_PORT: 9000
+    ports:
+      - "9000:9000"
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # ===== Kafka UI (Provectus) =====
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "8082:8080"
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
   # (kafka2/kafka3 eliminados en stack simplificado)
 
   # ===== KAFKA TOPICS INITIALIZATION =====
@@ -282,6 +314,7 @@ services:
           kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payments.events --partitions 1 --replication-factor 1 || true
           kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic transfers.events --partitions 1 --replication-factor 1 || true
           kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic alerts.suspect --partitions 1 --replication-factor 1 || true
+          kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic alerts.rules --partitions 1 --replication-factor 1 || true
           kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic backend.events --partitions 1 --replication-factor 1 || true
           kafka-topics --bootstrap-server kafka:9092 --list || true;
           echo 'Topic creation completed. Container will exit.';
@@ -486,6 +519,67 @@ services:
     # Sin volúmenes locales: el agent está dentro de la imagen
     networks:
       - kafka-network
+    restart: unless-stopped
+
+  alerts-streams:
+    image: eclipse-temurin:17-jre
+    container_name: alerts-streams
+    depends_on:
+      kafka:
+        condition: service_started
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_STREAMS_APP_ID=alerts-streams-app
+      - PAYMENTS_TOPIC=payments.events
+      - TRANSFERS_TOPIC=transfers.events
+      - ALERTS_TOPIC=alerts.suspect
+      - ALERTS_RULES_TOPIC=alerts.rules
+      - ALERTS_THRESHOLD=10000
+    volumes:
+      - ./services/alerts-streams/target/alerts-streams-0.1.0.jar:/app/app.jar:ro
+    command: ["java","-jar","/app/app.jar"]
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  alerts-persist:
+    image: eclipse-temurin:17-jre
+    container_name: alerts-persist
+    depends_on:
+      kafka:
+        condition: service_started
+      haproxy:
+        condition: service_started
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - ALERTS_TOPIC=alerts.suspect
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./services/alerts-persist/target/alerts-persist-0.1.0.jar:/app/app.jar:ro
+    command: ["java","-jar","/app/app.jar"]
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  alerts-config-api:
+    image: eclipse-temurin:17-jre
+    container_name: alerts-config-api
+    depends_on:
+      kafka:
+        condition: service_started
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SERVER_PORT=8091
+      - ALERTS_RULES_TOPIC=alerts.rules
+    volumes:
+      - ./services/alerts-config-api/target/alerts-config-api-0.1.0.jar:/app/app.jar:ro
+    command: ["java","-jar","/app/app.jar"]
+    networks:
+      - kafka-network
+    ports:
+      - "8091:8091"
     restart: unless-stopped
 
 

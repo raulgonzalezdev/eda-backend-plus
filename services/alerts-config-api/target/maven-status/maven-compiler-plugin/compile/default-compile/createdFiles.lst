@@ -1,0 +1,4 @@
+com\rgq\alerts\config\ConfigApiApplication.class
+com\rgq\alerts\config\dto\RuleDto.class
+com\rgq\alerts\config\RulesController.class
+com\rgq\alerts\config\KafkaProducerConfig.class

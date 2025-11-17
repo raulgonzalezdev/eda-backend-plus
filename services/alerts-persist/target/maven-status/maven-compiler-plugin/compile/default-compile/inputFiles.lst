@@ -1,0 +1,5 @@
+D:\eda-backend-plus\services\alerts-persist\src\main\java\com\rgq\alerts\persist\consumer\AlertsConsumer.java
+D:\eda-backend-plus\services\alerts-persist\src\main\java\com\rgq\alerts\persist\model\Alert.java
+D:\eda-backend-plus\services\alerts-persist\src\main\java\com\rgq\alerts\persist\PersistApplication.java
+D:\eda-backend-plus\services\alerts-persist\src\main\java\com\rgq\alerts\persist\config\KafkaConsumerConfig.java
+D:\eda-backend-plus\services\alerts-persist\src\main\java\com\rgq\alerts\persist\repository\AlertsRepository.java

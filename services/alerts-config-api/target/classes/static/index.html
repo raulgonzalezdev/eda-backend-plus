@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configurar reglas de alertas</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    form { display: grid; gap: 0.75rem; max-width: 420px; }
+    label { display: grid; gap: 0.25rem; }
+    input, button { padding: 0.5rem; font-size: 1rem; }
+    .status { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Configurar reglas de alertas</h1>
+  <form id="ruleForm">
+    <label>
+      Tipo (key)
+      <input id="type" name="type" placeholder="payment|transfer" required />
+    </label>
+    <label>
+      Umbral (threshold)
+      <input id="threshold" name="threshold" type="number" min="0" step="0.01" placeholder="1000" />
+    </label>
+    <label>
+      Habilitada
+      <input id="enabled" name="enabled" type="checkbox" checked />
+    </label>
+    <button type="submit">Guardar regla</button>
+  </form>
+  <div class="status" id="status"></div>
+  <script>
+    const form = document.getElementById('ruleForm');
+    const status = document.getElementById('status');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        type: document.getElementById('type').value,
+        threshold: Number(document.getElementById('threshold').value || 0),
+        enabled: document.getElementById('enabled').checked
+      };
+      try {
+        const res = await fetch('/api/rules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        status.textContent = res.ok ? 'Regla guardada.' : 'Error: ' + (data.error || 'fallo desconocido');
+      } catch (err) {
+        status.textContent = 'Error de red: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>

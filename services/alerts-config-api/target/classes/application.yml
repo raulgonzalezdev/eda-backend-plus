@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: alerts-config-api
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+server:
+  port: ${SERVER_PORT:8091}
+
+app:
+  kafka:
+    topics:
+      rules: ${ALERTS_RULES_TOPIC:alerts.rules}
