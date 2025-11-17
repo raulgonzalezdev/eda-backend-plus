@@ -1,5 +1,6 @@
 param(
   [string]$Container = 'patroni-master',
+  [int]$Port = 5432,
   [string]$Db = 'sasdatqbox',
   [string]$User = 'sas_user',
   [string]$Password = 'ML!gsx90l02',
@@ -69,7 +70,7 @@ foreach ($action in $Actions) {
     'run','--rm','--network',$Network,
     '-v',"${root}:/workspace",'-w','/workspace','flyway/flyway:10.10',
     $action,
-    "-url=jdbc:postgresql://${Container}:5432/${Db}",
+    "-url=jdbc:postgresql://${Container}:$Port/${Db}",
     "-user=${User}",
     "-password=${Password}",
     "-schemas=${Schemas}",

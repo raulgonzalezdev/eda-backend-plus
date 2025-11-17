@@ -556,11 +556,14 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://haproxy:5000/${DB_NAME}?sslmode=disable
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SERVER_PORT=8092
     volumes:
       - ./services/alerts-persist/target/alerts-persist-0.1.0.jar:/app/app.jar:ro
     command: ["java","-jar","/app/app.jar"]
     networks:
       - kafka-network
+    ports:
+      - "8092:8092"
     restart: unless-stopped
 
   alerts-config-api:

@@ -17,3 +17,6 @@ app:
   kafka:
     topics:
       rules: ${ALERTS_RULES_TOPIC:alerts.rules}
+  security:
+    rulesApiKey: ${RULES_API_KEY:}
+    enforceTenantHeader: ${ENFORCE_TENANT_HEADER:false}

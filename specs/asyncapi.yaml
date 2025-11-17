@@ -27,12 +27,14 @@ components:
         type: object
         properties:
           type: { type: string, enum: [payment] }
+          tenantId: { type: string, description: "Tenant (opcional)" }
           amount: { type: number }
     Transfer:
       payload:
         type: object
         properties:
           type: { type: string, enum: [transfer] }
+          tenantId: { type: string, description: "Tenant (opcional)" }
           amount: { type: number }
     Alert:
       payload:
@@ -40,4 +42,5 @@ components:
         properties:
           alert: { type: string }
           type: { type: string }
+          tenantId: { type: string, description: "Tenant (opcional)" }
           amount: { type: number }

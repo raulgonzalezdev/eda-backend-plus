@@ -1,5 +1,6 @@
-com\rgq\alerts\persist\consumer\AlertsConsumer.class
 com\rgq\alerts\persist\PersistApplication.class
+com\rgq\alerts\persist\controller\AlertsDbController.class
+com\rgq\alerts\persist\consumer\AlertsConsumer.class
 com\rgq\alerts\persist\model\Alert.class
 com\rgq\alerts\persist\repository\AlertsRepository.class
 com\rgq\alerts\persist\config\KafkaConsumerConfig.class

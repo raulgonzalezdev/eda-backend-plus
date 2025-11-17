@@ -13,4 +13,7 @@ public interface AlertsRepository extends JpaRepository<Alert, Long> {
     @Transactional(readOnly = true)
     List<Alert> findTop100ByOrderByCreatedAtDesc();
 
+    @Transactional(readOnly = true)
+    List<Alert> findTop100ByTenantIdOrderByCreatedAtDesc(String tenantId);
+
 }

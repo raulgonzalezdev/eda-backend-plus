@@ -22,6 +22,8 @@ public class Alert {
     private Double amount;
     @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
+    @Column(name = "tenant_id")
+    private String tenantId;
     @Column(name = "kafka_partition")
     private Integer kafkaPartition;
     @Column(name = "kafka_offset")
@@ -42,6 +44,8 @@ public class Alert {
     public void setAmount(Double amount) { this.amount = amount; }
     public String getPayload() { return payload; }
     public void setPayload(String payload) { this.payload = payload; }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
     public Integer getKafkaPartition() { return kafkaPartition; }
     public void setKafkaPartition(Integer kafkaPartition) { this.kafkaPartition = kafkaPartition; }
     public Long getKafkaOffset() { return kafkaOffset; }

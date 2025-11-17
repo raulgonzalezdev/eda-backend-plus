@@ -4,6 +4,7 @@ import com.rgq.edabank.repository.AlertsRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -17,7 +18,10 @@ public class AlertsDbController {
     }
 
     @GetMapping
-    public ResponseEntity<?> list() {
-        return ResponseEntity.ok(alertsRepo.findAll());
+    public ResponseEntity<?> list(@RequestParam(name = "tenantId", required = false) String tenantId) {
+        if (tenantId != null && !tenantId.isBlank()) {
+            return ResponseEntity.ok(alertsRepo.findTop100ByTenantIdOrderByCreatedAtDesc(tenantId));
+        }
+        return ResponseEntity.ok(alertsRepo.findTop100ByOrderByCreatedAtDesc());
     }
 }

@@ -36,6 +36,7 @@ public class AlertsConsumer {
             JsonNode node = mapper.readTree(payload);
             String type = node.has("type") ? node.get("type").asText("unknown") : "unknown";
             double amount = node.has("amount") ? node.get("amount").asDouble(0.0) : 0.0;
+            String tenantId = node.has("tenantId") ? node.get("tenantId").asText(null) : null;
 
             Alert a = new Alert();
             a.setEventId(null);
@@ -43,11 +44,16 @@ public class AlertsConsumer {
             a.setSourceType(type);
             a.setAmount(amount);
             a.setPayload(payload);
+            a.setTenantId(tenantId);
             a.setKafkaPartition(record.partition());
             a.setKafkaOffset(record.offset());
 
             alertsRepo.save(a);
-            log.info("Persistida alerta: partition={} offset={} type={} amount={}", record.partition(), record.offset(), type, amount);
+            if (tenantId != null) {
+                log.info("Persistida alerta: tenantId={} partition={} offset={} type={} amount={}", tenantId, record.partition(), record.offset(), type, amount);
+            } else {
+                log.info("Persistida alerta: partition={} offset={} type={} amount={}", record.partition(), record.offset(), type, amount);
+            }
         } catch (Exception e) {
             log.error("Error procesando alerta: {}", e.getMessage(), e);
         }

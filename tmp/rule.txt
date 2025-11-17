@@ -1,0 +1,1 @@
+acme:transfer:{"type":"transfer","tenantId":"acme","threshold":5000,"enabled":true}

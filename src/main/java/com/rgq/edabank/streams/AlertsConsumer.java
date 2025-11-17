@@ -33,6 +33,7 @@ public class AlertsConsumer {
             JsonNode node = mapper.readTree(payload);
             String type = node.has("type") ? node.get("type").asText("unknown") : "unknown";
             double amount = node.has("amount") ? node.get("amount").asDouble(0.0) : 0.0;
+            String tenantId = (node.has("tenantId") && !node.get("tenantId").isNull()) ? node.get("tenantId").asText() : null;
             
             System.out.println("Valores extraídos: type=" + type + ", amount=" + amount);
             
@@ -41,6 +42,7 @@ public class AlertsConsumer {
             a.setAlertType("threshold_exceeded");
             a.setSourceType(type);
             a.setAmount(amount);
+            a.setTenantId(tenantId);
             a.setPayload(payload);
             a.setKafkaPartition(record.partition());
             a.setKafkaOffset(record.offset());

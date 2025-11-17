@@ -44,7 +44,10 @@ public class TopologyConfig {
         JsonNode node = mapper.readTree(v);
         String type = node.has("type") ? node.get("type").asText("unknown") : "unknown";
         double amount = node.has("amount") ? node.get("amount").asDouble(0.0) : 0.0;
-        return "{\"alert\":\"threshold_exceeded\",\"type\":\"" + type + "\",\"amount\":" + amount + "}";
+        // Incluir tenantId si viene en el evento
+        String tenantId = node.has("tenantId") && !node.get("tenantId").isNull() ? node.get("tenantId").asText() : null;
+        String tField = (tenantId != null && !tenantId.isBlank()) ? ",\"tenantId\":\"" + tenantId + "\"" : "";
+        return "{\"alert\":\"threshold_exceeded\",\"type\":\"" + type + "\"" + tField + ",\"amount\":" + amount + "}";
       } catch (Exception e) {
         return "{\"alert\":\"parse_error\"}";
       }

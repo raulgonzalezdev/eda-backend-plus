@@ -43,14 +43,16 @@ public class AlertTopology {
         KStream<String, String> transfers = streamsBuilder.stream(transfersTopic, Consumed.with(stringSerde, stringSerde));
         KStream<String, String> merged = payments.merge(transfers).peek((k, v) -> log.debug("evt key={} payload={}", k, v));
 
-        // Reglas dinámicas como GlobalKTable (clave: type, valor: JSON con threshold)
+        // Reglas dinámicas como GlobalKTable (clave: type o tenantId:type, valor: JSON con threshold)
         GlobalKTable<String, String> rulesTable = streamsBuilder.globalTable(rulesTopic, Consumed.with(stringSerde, stringSerde));
 
-        // Proyectar clave del stream a 'type' para el join con reglas
+        // Proyectar clave del stream a 'type' o 'tenantId:type' para el join con reglas
         KStream<String, String> withTypeKey = merged.selectKey((k, v) -> {
             try {
                 JsonNode node = mapper.readTree(v);
-                return node.has("type") ? node.get("type").asText("unknown") : "unknown";
+                String type = node.has("type") ? node.get("type").asText("unknown") : "unknown";
+                String tenantId = node.has("tenantId") ? node.get("tenantId").asText("") : "";
+                return (tenantId != null && !tenantId.isBlank()) ? tenantId + ":" + type : type;
             } catch (Exception e) {
                 return "unknown";
             }
@@ -75,8 +77,10 @@ public class AlertTopology {
                     JsonNode node = mapper.readTree(evtVal);
                     double amount = node.has("amount") ? node.get("amount").asDouble(0.0) : 0.0;
                     String type = node.has("type") ? node.get("type").asText("unknown") : "unknown";
+                    String tenantId = node.has("tenantId") ? node.get("tenantId").asText(null) : null;
                     if (amount >= effectiveThreshold) {
-                        return "{\"alert\":\"threshold_exceeded\",\"type\":\"" + type + "\",\"amount\":" + amount + "}";
+                        String tField = (tenantId != null) ? ",\"tenantId\":\"" + tenantId + "\"" : "";
+                        return "{\"alert\":\"threshold_exceeded\",\"type\":\"" + type + "\"" + tField + ",\"amount\":" + amount + "}";
                     }
                 } catch (Exception e) {
                     log.warn("Error evaluando regla/payload: {}", e.getMessage());

@@ -21,6 +21,8 @@ public class Alert {
     private String sourceType;
     @Column(name = "amount")
     private Double amount;
+    @Column(name = "tenant_id")
+    private String tenantId;
     @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
     @Column(name = "kafka_partition")
@@ -41,6 +43,8 @@ public class Alert {
     public void setSourceType(String sourceType) { this.sourceType = sourceType; }
     public double getAmount() { return amount; }
     public void setAmount(double amount) { this.amount = amount; }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
     public String getPayload() { return payload; }
     public void setPayload(String payload) { this.payload = payload; }
     public Integer getKafkaPartition() { return kafkaPartition; }

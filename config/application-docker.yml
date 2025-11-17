@@ -43,7 +43,7 @@ spring:
     validate-on-migrate: false
 app:
   jwt:
-    secret: secret
+    secret: ${JWT_SECRET}
     expiration: 86400
 
 springdoc:
